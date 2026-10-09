@@ -1,6 +1,8 @@
 """Database access: one SQLAlchemy engine, one transaction per request."""
 from collections.abc import Iterator
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import Connection, Engine, create_engine
 from sqlalchemy.pool import NullPool
 
@@ -35,3 +37,8 @@ def get_conn() -> Iterator[Connection]:
     """
     with get_engine().begin() as conn:
         yield conn
+
+
+# Use this in routes, not Depends(get_conn) directly. scope="function" commits BEFORE the response
+# is sent; FastAPI's default runs it after, so a failed commit would still reach the client as 200.
+Conn = Annotated[Connection, Depends(get_conn, scope="function")]
