@@ -41,7 +41,7 @@ export default function MapDashboardPage() {
   const count = (b: string) => shown.filter((p) => p.priority_band === b).length;
   return (
     <div className="flex flex-col gap-4 lg:h-[calc(100vh-7.5rem)] lg:flex-row">
-      <aside aria-label="Filters" className="relative flex shrink-0 flex-col gap-4 overflow-hidden rounded-lg bg-foreground p-5 text-white lg:w-64">
+      <aside aria-label="Filters" className="relative flex shrink-0 flex-col gap-4 overflow-x-hidden overflow-y-auto rounded-lg bg-foreground p-5 text-white lg:w-64">
         <div aria-hidden className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary-bright opacity-20" />
         <h1 className="relative text-3xl font-extrabold leading-tight">Repair priority map</h1>
         <dl className="relative grid grid-cols-3 gap-2 text-center">
