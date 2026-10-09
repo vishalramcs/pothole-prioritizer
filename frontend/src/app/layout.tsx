@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@fontsource-variable/outfit";
 import "./globals.css";
 import NavBar from "@/components/layout/NavBar";
 
@@ -12,7 +13,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <NavBar />
-        <main className="flex-1 p-6">{children}</main>
+        <main className="mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6">{children}</main>
       </body>
     </html>
   );

@@ -5,10 +5,13 @@ import { useEffect, useState } from "react";
 import { PotholeMap } from "@/components/map";
 import PotholeDetail from "@/components/panels/PotholeDetail";
 import { BandChip } from "@/components/ui/chips";
+import { fieldClass } from "@/components/ui/styles";
 import { apiFetch } from "@/lib/api";
 import { BANDS, STATUSES, type Pothole } from "@/lib/types";
 
 const OPEN = "open";
+// Big stat numbers on the dark panel (orange is readable on dark, 7.3:1; the "fill only" rule is for white)
+const BAND_NUMBER: Record<string, string> = { Critical: "text-critical-on-dark", Moderate: "text-moderate", Low: "text-low-on-dark" };
 
 export default function MapDashboardPage() {
   const [statusFilter, setStatusFilter] = useState<string>(OPEN);
@@ -33,48 +36,59 @@ export default function MapDashboardPage() {
     && (!zoneFilter || String(p.zone_id) === zoneFilter));
   const zones = [...new Set((all ?? []).map((p) => p.zone_id).filter((z) => z !== null))].sort((a, b) => a! - b!);
 
-  const select = "mt-1 w-full rounded border border-muted bg-surface px-2 py-1.5";
+  const select = `${fieldClass} mt-1 w-full`;
+  const label = "text-xs font-semibold uppercase tracking-wider text-white/80";
+  const count = (b: string) => shown.filter((p) => p.priority_band === b).length;
   return (
     <div className="flex flex-col gap-4 lg:h-[calc(100vh-7.5rem)] lg:flex-row">
-      <aside aria-label="Filters" className="flex shrink-0 flex-col gap-3 rounded-lg bg-surface p-4 shadow lg:w-56">
-        <h1 className="text-xl font-semibold">Repair priority map</h1>
-        <label className="text-xs text-muted">Status
+      <aside aria-label="Filters" className="relative flex shrink-0 flex-col gap-4 overflow-hidden rounded-lg bg-foreground p-5 text-white lg:w-64">
+        <div aria-hidden className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary-bright opacity-20" />
+        <h1 className="relative text-3xl font-extrabold leading-tight">Repair priority map</h1>
+        <dl className="relative grid grid-cols-3 gap-2 text-center">
+          {BANDS.map((b) => (
+            <div key={b} className="rounded-md bg-white/10 px-1 py-2">
+              <dt className="text-[11px] font-semibold uppercase tracking-wider text-white/80">{b}</dt>
+              <dd className={`text-3xl font-extrabold ${BAND_NUMBER[b]}`}>{count(b)}</dd>
+            </div>
+          ))}
+        </dl>
+        <label className={label}>Status
           <select className={select} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value={OPEN}>Open (not repaired)</option>
             <option value="">All</option>
             {STATUSES.map((s) => <option key={s}>{s}</option>)}
           </select>
         </label>
-        <label className="text-xs text-muted">Priority band
+        <label className={label}>Priority band
           <select className={select} value={bandFilter} onChange={(e) => setBandFilter(e.target.value)}>
             <option value="">All</option>
             {BANDS.map((b) => <option key={b}>{b}</option>)}
           </select>
         </label>
-        <label className="text-xs text-muted">Zone
+        <label className={label}>Zone
           <select className={select} value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)}>
             <option value="">All</option>
             {zones.map((z) => <option key={z} value={String(z)}>Zone {z}</option>)}
           </select>
         </label>
-        <div className="text-xs">
-          <p className="font-semibold text-muted">Legend</p>
-          <ul className="mt-1 space-y-1">
+        <div className="text-sm">
+          <p className={label}>Legend</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
             {BANDS.map((b) => <li key={b}><BandChip band={b} /></li>)}
-            <li className="text-muted">Bigger marker = higher score · hollow = repaired</li>
           </ul>
+          <p className="mt-2 text-white/80">Bigger marker = higher score · hollow = repaired</p>
         </div>
-        <p className="mt-auto text-xs text-muted">
+        <p className="mt-auto text-sm text-white/80">
           {shown.length} of {all?.length ?? 0} potholes shown
-          {shown.some((p) => p.is_demo) && <> · includes {shown.filter((p) => p.is_demo).length} <b>demo data</b> potholes</>}
+          {shown.some((p) => p.is_demo) && <> · includes {shown.filter((p) => p.is_demo).length} <b className="text-white">demo data</b> potholes</>}
         </p>
       </aside>
 
       <section aria-label="Map" className="relative h-[60vh] flex-1 lg:h-auto">
-        {error && <p role="alert" className="rounded bg-surface p-4 text-critical">{error}</p>}
+        {error && <p role="alert" className="rounded-lg bg-surface p-4 font-semibold text-critical">{error}</p>}
         {all && all.length === 0 && (
-          <p className="absolute left-1/2 top-4 z-[1000] -translate-x-1/2 rounded bg-surface px-4 py-2 shadow">
-            No potholes yet. <Link className="text-brand underline" href="/upload">Upload an image</Link> or load demo data.
+          <p className="absolute left-1/2 top-4 z-[1000] -translate-x-1/2 rounded-md bg-foreground px-4 py-3 font-semibold text-white">
+            No potholes yet. <Link className="underline decoration-2 underline-offset-4" href="/upload">Upload an image</Link> or load demo data.
           </p>
         )}
         {!error && <PotholeMap potholes={shown} selectedId={selected} onSelect={setSelected} />}

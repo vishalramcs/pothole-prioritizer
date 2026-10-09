@@ -15,7 +15,7 @@ const SEVERITY_CLASS: Record<SeverityLevel, string> = {
 
 export function BandChip({ band }: { band: Band }) {
   return (
-    <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${BAND_CLASS[band]}`}>
+    <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${BAND_CLASS[band]}`}>
       {band === "Critical" ? "! " : ""}
       {band}
     </span>
@@ -23,12 +23,12 @@ export function BandChip({ band }: { band: Band }) {
 }
 
 export function SeverityChip({ level }: { level: SeverityLevel }) {
-  return <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${SEVERITY_CLASS[level]}`}>{level}</span>;
+  return <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${SEVERITY_CLASS[level]}`}>{level}</span>;
 }
 
 export function DemoBadge() {
   return (
-    <span className="ml-1 rounded border border-muted px-1 text-[11px] text-muted" title="Mock values, not real traffic data">
+    <span className="ml-1 rounded-sm bg-background px-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted" title="Mock values, not real traffic data">
       demo data
     </span>
   );

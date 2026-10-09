@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect } from "react";
 import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { COLORS } from "@/lib/colors";
 import { DEFAULT_CENTER } from "./PotholeMap";
 
 /** The map can be created before its box has its final size; re-measure whenever the box changes. */
@@ -36,7 +37,7 @@ export default function LocationPicker({ value, onPick }: {
       />
       <TrackSize />
       <ClickToPick onPick={onPick} />
-      {value && <CircleMarker center={value} radius={8} pathOptions={{ color: "#1f3864", fillOpacity: 0.8 }} />}
+      {value && <CircleMarker center={value} radius={8} pathOptions={{ color: COLORS.primary, fillOpacity: 0.9 }} />}
     </MapContainer>
   );
 }

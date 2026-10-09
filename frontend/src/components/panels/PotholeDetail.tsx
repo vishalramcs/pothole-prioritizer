@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch, potholeImageUrl } from "@/lib/api";
+import { COLORS } from "@/lib/colors";
 import type { PotholeDetail as Detail } from "@/lib/types";
 import StatusButtons from "@/components/repairs/StatusButtons";
+import { X } from "lucide-react";
 import { BandChip, DemoBadge, SeverityChip, THRESHOLD_NOTE } from "@/components/ui/chips";
+import { focusRing, labelClass } from "@/components/ui/styles";
 
 const PARTS = [
   { key: "severity", label: "Severity" },
@@ -66,11 +69,12 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
   const shown = p?.pothole_id === id ? p : null; // never show the previous pothole while the next loads
 
   return (
-    <aside aria-label="Pothole detail" className="flex h-full flex-col gap-3 overflow-y-auto rounded-lg bg-surface p-4 shadow">
+    <aside aria-label="Pothole detail" className="flex h-full flex-col gap-4 overflow-y-auto rounded-lg bg-surface p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Pothole #{id}</h2>
-        <button type="button" onClick={onClose} aria-label="Close detail panel" className="rounded px-2 text-lg hover:bg-background focus-visible:outline-2 focus-visible:outline-brand">
-          ×
+        <h2 className="text-2xl font-extrabold">Pothole #{id}</h2>
+        <button type="button" onClick={onClose} aria-label="Close detail panel"
+          className={`flex h-9 w-9 items-center justify-center rounded-md bg-background transition-colors duration-200 hover:bg-border ${focusRing}`}>
+          <X aria-hidden size={18} strokeWidth={2.5} />
         </button>
       </div>
       {error && <p role="alert" className="text-critical">{error}</p>}
@@ -83,23 +87,23 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
             height={shown.image_height}
             alt={`Photo of pothole ${shown.pothole_id} with the detected area outlined`}
             boxes={shown.bbox_x === null ? [] : [{
-              x: shown.bbox_x, y: shown.bbox_y!, w: shown.bbox_w!, h: shown.bbox_h!, color: "#1f3864",
+              x: shown.bbox_x, y: shown.bbox_y!, w: shown.bbox_w!, h: shown.bbox_h!, color: COLORS.primary,
             }]}
           />
           {shown.is_demo && (
-            <p className="rounded border border-muted px-2 py-1 text-xs text-muted">
+            <p className="rounded-md bg-background px-3 py-2 text-xs font-medium text-muted">
               Demo data: the location and road are made up; the detection is the model&apos;s real result on a sample photo.
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2">
             <BandChip band={shown.priority_band} />
-            <span className="font-semibold">Priority {shown.priority_score.toFixed(2)}</span>
+            <span className="text-lg font-extrabold">Priority {shown.priority_score.toFixed(2)}</span>
             {shown.safety_override && <span className="text-xs font-semibold text-critical">safety override</span>}
             <span className="text-muted">· {shown.status}</span>
           </div>
 
           <section>
-            <h3 className="text-xs font-semibold uppercase text-muted">Relative severity (image-based)</h3>
+            <h3 className={labelClass}>Relative severity (image-based)</h3>
             <p className="mt-1 flex items-center gap-2">
               <SeverityChip level={shown.severity_level} />
               covers {((shown.area_ratio ?? 0) * 100).toFixed(1)}% of the photo · confidence {(shown.confidence ?? 0).toFixed(2)}
@@ -107,7 +111,7 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
           </section>
 
           <section>
-            <h3 className="text-xs font-semibold uppercase text-muted">Score breakdown</h3>
+            <h3 className={labelClass}>Score breakdown</h3>
             <ul className="mt-1 space-y-2">
               {PARTS.map(({ key, label }) => {
                 const b = shown.breakdown[key];
@@ -119,8 +123,8 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
                       </span>
                       <span>{b.value.toFixed(2)} × {b.weight.toFixed(2)} = <b>{b.contribution.toFixed(3)}</b></span>
                     </div>
-                    <div className="mt-0.5 h-2 rounded bg-background" aria-hidden>
-                      <div className="h-2 rounded bg-brand" style={{ width: `${b.value * 100}%` }} />
+                    <div className="mt-1 h-2.5 rounded-sm bg-background" aria-hidden>
+                      <div className="h-2.5 rounded-sm bg-primary" style={{ width: `${b.value * 100}%` }} />
                     </div>
                   </li>
                 );

@@ -4,9 +4,9 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useRef } from "react";
 import { Circle, MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
-import type { Band, Pothole, Zone } from "@/lib/types";
+import { BAND_COLOR, COLORS } from "@/lib/colors";
+import type { Pothole, Zone } from "@/lib/types";
 
-const COLOR: Record<Band, string> = { Critical: "#c62828", Moderate: "#ef8f00", Low: "#2e7d32" };
 export const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];
 
 /** Circle marker: colour = band, size = score, hollow = repaired, "!" = Critical, white outline (design brief 6). */
@@ -15,9 +15,9 @@ function markerIcon(p: Pothole, selected: boolean): L.DivIcon {
   const repaired = p.status === "Repaired";
   const style = [
     `width:${size}px`, `height:${size}px`, "border-radius:50%",
-    `background:${repaired ? "rgba(255,255,255,.6)" : COLOR[p.priority_band]}`,
-    `border:${repaired ? "3px solid #6b7785" : "2px solid #fff"}`,
-    selected ? "box-shadow:0 0 0 3px #1f3864" : "box-shadow:0 1px 3px rgba(0,0,0,.45)",
+    `background:${repaired ? "rgba(255,255,255,.6)" : BAND_COLOR[p.priority_band]}`,
+    `border:${repaired ? `3px solid ${COLORS.repaired}` : `2px solid ${COLORS.white}`}`,
+    selected ? `outline:3px solid ${COLORS.ink};outline-offset:2px` : "", // flat: no shadow, a solid ring when selected
     "display:flex", "align-items:center", "justify-content:center",
     `color:#fff;font:700 ${Math.round(size * 0.6)}px system-ui`,
   ].join(";");
@@ -97,7 +97,7 @@ export default function PotholeMap({ potholes, selectedId, onSelect, zones = [] 
           key={z.zone_id}
           center={[z.centroid_lat, z.centroid_lng]}
           radius={Math.max(40, z.radius_m + 25)}
-          pathOptions={{ color: "#1f3864", weight: 1, fillOpacity: 0.08 }}
+          pathOptions={{ color: COLORS.primary, weight: 2, fillOpacity: 0.1 }}
         >
           <Tooltip>{`Zone ${z.zone_id}: ${z.pothole_count} potholes, avg priority ${z.avg_priority.toFixed(2)}`}</Tooltip>
         </Circle>

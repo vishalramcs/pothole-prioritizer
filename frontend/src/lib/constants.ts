@@ -1,8 +1,10 @@
+import { BarChart3, Gauge, Map, Route, Upload, Wrench } from "lucide-react";
+
 export const NAV_LINKS = [
-  { href: "/", label: "Map" },
-  { href: "/upload", label: "Upload" },
-  { href: "/zones-plan", label: "Zones and Plan" },
-  { href: "/repairs", label: "Repairs" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/evaluation", label: "Evaluation" },
+  { href: "/", label: "Map", icon: Map },
+  { href: "/upload", label: "Upload", icon: Upload },
+  { href: "/zones-plan", label: "Zones and Plan", icon: Route },
+  { href: "/repairs", label: "Repairs", icon: Wrench },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/evaluation", label: "Evaluation", icon: Gauge },
 ] as const;

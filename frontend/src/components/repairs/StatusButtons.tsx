@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Button from "@/components/ui/Button";
 import { ApiError, apiFetch, json } from "@/lib/api";
 import type { Status } from "@/lib/types";
 
@@ -39,20 +40,14 @@ export default function StatusButtons({ potholeId, status, onChanged }: {
     }
   }
 
-  if (ACTIONS[status].length === 0) return <span className="text-xs text-muted">Final</span>;
+  if (ACTIONS[status].length === 0) return <span className="text-xs font-semibold uppercase tracking-wider text-muted">Final</span>;
   return (
     <div>
       <div className="flex flex-wrap gap-2">
         {ACTIONS[status].map(({ label, to }) => (
-          <button
-            key={to}
-            type="button"
-            disabled={busy}
-            onClick={() => change(to)}
-            className="rounded border border-brand px-2 py-1 text-xs font-medium text-brand hover:bg-brand hover:text-white focus-visible:outline-2 focus-visible:outline-brand disabled:opacity-50"
-          >
+          <Button key={to} variant="outline" size="sm" disabled={busy} onClick={() => change(to)}>
             {label}
-          </button>
+          </Button>
         ))}
       </div>
       {error && <p role="alert" className="mt-1 text-xs text-critical">{error}</p>}

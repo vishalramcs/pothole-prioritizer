@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Camera, ScanSearch } from "lucide-react";
 import { LocationPicker } from "@/components/map";
+import Button, { buttonClass } from "@/components/ui/Button";
+import PageHeader from "@/components/ui/PageHeader";
+import { fieldClass, labelClass } from "@/components/ui/styles";
 import { BoxedImage } from "@/components/panels/PotholeDetail";
 import { BandChip, SeverityChip, THRESHOLD_NOTE } from "@/components/ui/chips";
 import { apiFetch, BASE_URL } from "@/lib/api";
-import type { Road, SeverityLevel, UploadResult } from "@/lib/types";
+import { SEVERITY_COLOR } from "@/lib/colors";
+import type { Road, UploadResult } from "@/lib/types";
 
 const MAX_MB = 10;
 const MAX_VIDEO_MB = 50;
@@ -18,7 +23,6 @@ function fileError(f: File): string | null {
   if (VIDEO_TYPES.includes(f.type)) return f.size > MAX_VIDEO_MB * 1024 * 1024 ? `Use a video under ${MAX_VIDEO_MB} MB` : null;
   return `Use a JPG or PNG under ${MAX_MB} MB, or an MP4, MOV or WebM video under ${MAX_VIDEO_MB} MB`;
 }
-const SEVERITY_COLOR: Record<SeverityLevel, string> = { High: "#c62828", Medium: "#9a4a00", Low: "#2e7d32" };
 const MATCH_TEXT = { new: "New", repeat: "Yes, same pothole (seen again)", recurrence: "Yes, came back after repair" };
 
 export default function UploadPage() {
@@ -75,22 +79,25 @@ export default function UploadPage() {
     }
   }
 
-  const field = "mt-1 block min-h-11 w-full rounded border border-muted bg-surface px-3 py-2";
+  const field = `${fieldClass} mt-1 min-h-11 w-full`;
+  const fieldLabel = `${labelClass} block`;
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4">
-      <h1 className="text-[28px] font-semibold">Upload a road photo or video</h1>
+    <div className="flex flex-col gap-6">
+      <PageHeader icon={Camera} title="Report a pothole"
+        subtitle="Upload a road photo or short video. The model finds the potholes and scores how urgently each needs repair." />
 
-      <form onSubmit={submit} className="flex flex-col gap-4 rounded-lg bg-surface p-4 shadow" noValidate>
-        <label className="font-medium">Photo (JPG or PNG, up to {MAX_MB} MB) or short video (up to {MAX_VIDEO_MB} MB)
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <form onSubmit={submit} className="flex flex-col gap-5 rounded-lg bg-surface p-6" noValidate>
+        <label className={fieldLabel}>Photo (JPG or PNG, up to {MAX_MB} MB) or short video (up to {MAX_VIDEO_MB} MB)
           <input type="file" accept={[...IMAGE_TYPES, ...VIDEO_TYPES].join(",")} className={field}
             onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
         </label>
         {preview && !result && (isVideo
-          ? <video src={preview} controls muted className="max-h-72 rounded" aria-label="Selected video preview" />
+          ? <video src={preview} controls muted className="max-h-72 rounded-md" aria-label="Selected video preview" />
           // eslint-disable-next-line @next/next/no-img-element -- local preview from an object URL
-          : <img src={preview} alt="Selected photo preview" className="max-h-72 rounded object-contain" />)}
+          : <img src={preview} alt="Selected photo preview" className="max-h-72 rounded-md object-contain" />)}
 
-        <label className="font-medium">Road
+        <label className={fieldLabel}>Road
           <select required className={field} value={roadId} onChange={(e) => setRoadId(e.target.value)}>
             <option value="">Choose the road…</option>
             {roads.map((r) => <option key={r.road_id} value={r.road_id}>{r.name} ({r.road_type})</option>)}
@@ -98,42 +105,42 @@ export default function UploadPage() {
         </label>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="font-medium">Location</legend>
-          <p className="text-xs text-muted">
+          <legend className={fieldLabel}>Location</legend>
+          <p className="text-sm text-muted">
             {isVideo ? "Type the clip's location or click the map." : "Leave blank to use the GPS stored in the photo, or type it, or click the map."}
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs text-muted">Latitude
+            <label className={fieldLabel}>Latitude
               <input inputMode="decimal" className={field} value={lat} aria-invalid={!!coordError}
                 onChange={(e) => { setLat(e.target.value); setGpsSource("manual"); }} />
             </label>
-            <label className="text-xs text-muted">Longitude
+            <label className={fieldLabel}>Longitude
               <input inputMode="decimal" className={field} value={lng} aria-invalid={!!coordError}
                 onChange={(e) => { setLng(e.target.value); setGpsSource("manual"); }} />
             </label>
           </div>
-          {coordError && <p role="alert" className="text-xs text-critical">{coordError}</p>}
+          {coordError && <p role="alert" className="text-sm font-semibold text-critical">{coordError}</p>}
           <LocationPicker
             value={lat !== "" && lng !== "" && !coordError ? [latNum, lngNum] : null}
             onPick={(a, b) => { setLat(a.toFixed(6)); setLng(b.toFixed(6)); setGpsSource("map_click"); }}
           />
         </fieldset>
 
-        <button type="submit" disabled={busy || !file || !roadId || !!coordError}
-          className="min-h-11 rounded bg-brand px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50">
+        <Button type="submit" size="lg" disabled={busy || !file || !roadId || !!coordError}>
+          <ScanSearch aria-hidden size={20} strokeWidth={2.5} />
           {busy ? (isVideo ? "Analyzing video…" : "Analyzing image…") : "Detect potholes"}
-        </button>
+        </Button>
         {busy && (
           <p role="status" className="text-muted">
             {isVideo ? "Analyzing video… one frame per second, so this takes a while on a laptop." : "Analyzing image… this takes a few seconds on a laptop."}
           </p>
         )}
-        {error && <p role="alert" className="text-critical">{error}</p>}
+        {error && <p role="alert" className="font-semibold text-critical">{error}</p>}
       </form>
 
       {result && (
-        <section aria-label="Detection results" className="flex flex-col gap-3 rounded-lg bg-surface p-4 shadow">
-          <h2 className="text-xl font-semibold">
+        <section aria-label="Detection results" className="flex flex-col gap-4 rounded-lg bg-surface p-6">
+          <h2 className="text-2xl font-extrabold">
             {result.potholes.length === 0 ? "No potholes detected" : `${result.potholes.length} pothole(s) found`}
           </h2>
           {result.media_type === "video" ? (
@@ -167,7 +174,7 @@ export default function UploadPage() {
           )}
           {result.potholes.length > 0 && (
             <table className="w-full text-left text-sm">
-              <thead className="text-xs text-muted">
+              <thead className={labelClass}>
                 <tr><th className="py-1">#</th><th>Relative severity</th><th>Priority</th><th>Confidence</th><th>Seen before?</th></tr>
               </thead>
               <tbody>
@@ -188,13 +195,12 @@ export default function UploadPage() {
             All potholes in one {result.media_type === "video" ? "clip" : "photo"} share this point. {THRESHOLD_NOTE}
           </p>
           <div className="flex gap-3">
-            <Link href="/" className="min-h-11 rounded bg-brand px-4 py-2 font-semibold text-white">View on map</Link>
-            <button type="button" onClick={() => pickFile(null)} className="min-h-11 rounded border border-brand px-4 py-2 font-semibold text-brand">
-              Upload another
-            </button>
+            <Link href="/" className={buttonClass("primary", "md")}>View on map</Link>
+            <Button variant="outline" onClick={() => pickFile(null)}>Upload another</Button>
           </div>
         </section>
       )}
+      </div>
     </div>
   );
 }

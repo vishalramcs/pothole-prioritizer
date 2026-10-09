@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Wrench } from "lucide-react";
 import StatusButtons from "@/components/repairs/StatusButtons";
+import PageHeader from "@/components/ui/PageHeader";
+import { focusRing, labelClass } from "@/components/ui/styles";
 import { BandChip } from "@/components/ui/chips";
 import { apiFetch } from "@/lib/api";
 import { STATUSES, type RepairRow, type Status } from "@/lib/types";
@@ -21,24 +24,25 @@ export default function RepairsPage() {
   }, [tab, version]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-[28px] font-semibold">Repairs</h1>
+    <div className="flex flex-col gap-6">
+      <PageHeader icon={Wrench} tone="ink" title="Repairs"
+        subtitle="Track every pothole from reported to repaired. Buttons only offer the changes the status rules allow." />
       <div role="tablist" aria-label="Repair status" className="flex flex-wrap gap-2">
         {STATUSES.map((s) => (
           <button key={s} role="tab" type="button" aria-selected={tab === s} onClick={() => { setTab(s); setRows(null); }}
-            className={`rounded px-3 py-2 font-medium focus-visible:outline-2 focus-visible:outline-brand ${tab === s ? "bg-brand text-white" : "bg-surface text-foreground shadow"}`}>
+            className={`h-11 rounded-md px-5 font-semibold transition-colors duration-200 ${focusRing} ${tab === s ? "bg-primary text-white" : "bg-surface text-foreground hover:bg-border"}`}>
             {s}
           </button>
         ))}
       </div>
 
-      <div role="tabpanel" className="overflow-x-auto rounded-lg bg-surface p-4 shadow">
+      <div role="tabpanel" className="overflow-x-auto rounded-lg bg-surface p-6">
         {error && <p role="alert" className="text-critical">{error}</p>}
         {!rows && !error && <p className="text-muted">Loading…</p>}
         {rows?.length === 0 && <p className="text-muted">No potholes are {tab.toLowerCase()}.</p>}
         {rows && rows.length > 0 && (
           <table className="w-full text-left">
-            <thead className="text-xs text-muted">
+            <thead className={labelClass}>
               <tr>
                 <th className="py-2">Pothole</th><th>Road</th><th>Priority</th><th>Zone</th><th>Crew</th>
                 <th>{tab === "Repaired" ? "Repaired" : "Planned date"}</th><th>Actions</th>

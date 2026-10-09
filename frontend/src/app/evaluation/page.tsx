@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Gauge } from "lucide-react";
+import Button from "@/components/ui/Button";
+import PageHeader from "@/components/ui/PageHeader";
+import { fieldClass, labelClass } from "@/components/ui/styles";
 import { apiFetch } from "@/lib/api";
 
 interface StrategyResult {
@@ -42,38 +46,45 @@ export default function EvaluationPage() {
     return () => { alive = false; };
   }, [query]);
 
-  const field = "mt-1 block w-20 rounded border border-muted bg-surface px-2 py-1 text-foreground";
+  const field = `${fieldClass} mt-1 w-24`;
+  const stats: [string, number, string][] = ev ? [
+    ["Open potholes", ev.open_potholes, "text-foreground"], ["Critical", ev.critical_potholes, "text-critical"],
+    ["Repairs per day", ev.capacity_per_day, "text-primary"], ["Days planned", ev.days, "text-foreground"],
+  ] : [];
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-[28px] font-semibold">Is the prioritization working?</h1>
+    <div className="flex flex-col gap-6">
+      <PageHeader icon={Gauge} tone="ink" title="Is the prioritization working?"
+        subtitle="SRPPS against simpler ways of ordering the same repairs, with the same crews and days." />
       <p className="max-w-3xl text-muted">
         Every strategy repairs the same open potholes with the same crews and the same number of repairs per day.
         Only the order differs. Nothing is saved: this is a simulation on the current data.
       </p>
 
       <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); setQuery({ days, within }); }}>
-        <label className="text-xs text-muted">Days to plan
+        <label className={labelClass}>Days to plan
           <input type="number" min={1} max={60} className={field} value={days} onChange={(e) => setDays(e.target.value)} />
         </label>
-        <label className="text-xs text-muted">Critical fixed within (days)
+        <label className={labelClass}>Critical fixed within (days)
           <input type="number" min={1} max={60} className={field} value={within} onChange={(e) => setWithin(e.target.value)} />
         </label>
-        <button type="submit" className="min-h-10 rounded bg-brand px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-          Run evaluation
-        </button>
+        <Button type="submit">Run evaluation</Button>
       </form>
 
-      {error && <p role="alert" className="text-critical">{error}</p>}
+      {error && <p role="alert" className="font-semibold text-critical">{error}</p>}
       {ev && (
         <>
-          <p>
-            {ev.open_potholes} open potholes ({ev.critical_potholes} Critical), crews can repair {ev.capacity_per_day} per day,
-            {" "}{ev.days} day(s).
-          </p>
-          <div className="overflow-x-auto rounded-lg bg-surface p-4 shadow">
+          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {stats.map(([k, v, c]) => (
+              <div key={k} className="rounded-lg bg-surface px-6 py-4">
+                <dt className={labelClass}>{k}</dt>
+                <dd className={`text-4xl font-extrabold ${c}`}>{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="overflow-x-auto rounded-lg bg-surface p-6">
             <table className="w-full text-left text-sm">
-              <caption className="mb-2 text-left text-xl font-semibold">Strategies compared</caption>
-              <thead className="text-xs text-muted">
+              <caption className="mb-3 text-left text-xl font-bold">Strategies compared</caption>
+              <thead className={labelClass}>
                 <tr>
                   <th className="py-2">Strategy</th><th>Repaired</th><th>Priority addressed</th>
                   <th>Critical fixed within {ev.critical_within} d</th><th>Avg days to repair Critical</th>
@@ -82,7 +93,7 @@ export default function EvaluationPage() {
               </thead>
               <tbody>
                 {ev.strategies.map((s) => (
-                  <tr key={s.strategy} className={`border-t border-background ${s.strategy.startsWith("SRPPS") ? "font-semibold" : ""}`}>
+                  <tr key={s.strategy} className={`border-t border-background ${s.strategy.startsWith("SRPPS") ? "bg-primary/10 font-bold" : ""}`}>
                     <td className="py-2">{s.strategy}</td>
                     <td>{s.repaired}</td>
                     <td>{s.priority_addressed_pct}%</td>
@@ -95,7 +106,7 @@ export default function EvaluationPage() {
                 ))}
               </tbody>
             </table>
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-muted">
+            <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-muted">
               <li>Priority addressed: share of the total priority score repaired within the plan.</li>
               <li>Average days to repair Critical: a Critical pothole not repaired in the plan counts as days + 1.</li>
               <li>Road-user exposure: sum of traffic × severity × days the pothole stays open (lower is better). It uses two
@@ -105,10 +116,10 @@ export default function EvaluationPage() {
             </ul>
           </div>
 
-          <div className="overflow-x-auto rounded-lg bg-surface p-4 shadow">
+          <div className="overflow-x-auto rounded-lg bg-surface p-6">
             <table className="w-full max-w-2xl text-left text-sm">
-              <caption className="mb-2 text-left text-xl font-semibold">How sensitive is the ranking to the weights?</caption>
-              <thead className="text-xs text-muted">
+              <caption className="mb-3 text-left text-xl font-bold">How sensitive is the ranking to the weights?</caption>
+              <thead className={labelClass}>
                 <tr><th className="py-2">Weight</th><th>Change</th><th>Same top {ev.top_n}</th><th>Rank correlation (Spearman)</th></tr>
               </thead>
               <tbody>
@@ -119,7 +130,7 @@ export default function EvaluationPage() {
                 ))}
               </tbody>
             </table>
-            <p className="mt-2 text-xs text-muted">
+            <p className="mt-3 text-sm text-muted">
               One weight changed by ±20%, then all weights rescaled to sum to 1. High overlap and correlation mean the
               ranking does not hinge on the exact (assumed) weights.
             </p>

@@ -1,18 +1,30 @@
 @import "tailwindcss";
 
-/* Design tokens from docs/04-design-brief.md (section 5). Contrast ratios are listed there.
-   --moderate (orange) is a FILL colour only; use --moderate-text for text. */
+/* Flat design system: no shadows, no gradients on elements, colour blocks for structure, bold geometric type.
+   Contrast (WCAG): white on --primary #2563eb is 5.2:1. The design system's Blue 500 (#3b82f6) is only 3.7:1
+   with white, so it is --primary-bright and used for decoration and large text only.
+   --secondary (emerald) and --accent (amber) are decoration-only and never used near priority bands, so
+   they cannot be confused with Low (green) and Moderate (orange).
+   Bands keep the colours from docs/04-design-brief.md; --moderate is a FILL only, use --moderate-text for text. */
 :root {
-  --background: #f7f8fa;
+  --background: #f3f4f6; /* page: gray 100, cards sit on it as white blocks */
   --surface: #ffffff;
-  --foreground: #1b1f24;
-  --muted: #5b6570;
-  --brand: #1f3864;
+  --foreground: #111827; /* gray 900, also the dark "ink" blocks (nav) */
+  --muted: #4b5563; /* gray 600 text: 7.6:1 on white, 6.9:1 on the page */
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-bright: #3b82f6;
+  --secondary: #10b981;
+  --accent: #f59e0b;
   --critical: #c62828;
   --moderate: #ef8f00;
   --moderate-text: #9a4a00;
   --low: #2e7d32;
   --repaired: #6b7785;
+  /* band colours for text on the dark (#111827) panels: 6.4:1 and 10.2:1 */
+  --critical-on-dark: #ff6b6b;
+  --low-on-dark: #4ade80;
 }
 
 @theme inline {
@@ -20,19 +32,30 @@
   --color-surface: var(--surface);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
-  --color-brand: var(--brand);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-bright: var(--primary-bright);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
   --color-critical: var(--critical);
   --color-moderate: var(--moderate);
   --color-moderate-text: var(--moderate-text);
   --color-low: var(--low);
   --color-repaired: var(--repaired);
-  /* System fonts: no network needed at build time (venue Wi-Fi can fail). */
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --color-critical-on-dark: var(--critical-on-dark);
+  --color-low-on-dark: var(--low-on-dark);
+  /* Outfit is bundled with the app (@fontsource-variable/outfit), so builds and demos work offline */
+  --font-sans: "Outfit Variable", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 15px;
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.02em;
 }
