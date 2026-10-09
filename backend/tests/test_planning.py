@@ -159,3 +159,21 @@ def test_greedy_order_prefers_close_stops():
     near = {"pothole_id": 2, "priority_score": 0.5, "lat": 0.0, "lng": 100 * M}
     far = {"pothole_id": 3, "priority_score": 0.6, "lat": 0.0, "lng": 20_000 * M}
     assert [p["pothole_id"] for p in planner.greedy_order([far, near, start])] == [1, 2, 3]
+
+
+# ---------- analytics ----------
+
+def test_analytics_summary(client, board):
+    a = add(board, 40.0, 40.0, 0.5)
+    b = add(board, 40.0, 40.0, 0.7)
+    potholes.update(board, b, detection_count=3)
+    crew(client, "Crew A", 5)
+    client.post("/api/plan", json={"days": 1})
+    client.patch(f"/api/potholes/{a}/status", json={"status": "Repaired"})
+    s = client.get("/api/analytics/summary").json()
+    status = {r["status"]: r["n"] for r in s["by_status"]}
+    assert status["Scheduled"] == 1 and status["Pending"] == 0  # zero counts are filled in
+    assert s["top_roads"][0]["pending"] == 1 and s["top_roads"][0]["total_priority"] == 0.7
+    assert s["hotspots"][0]["pothole_id"] == b and s["hotspots"][0]["repeat_count"] == 2
+    assert s["avg_days_to_repair"] == 0.0
+    assert s["done_by_crew"] == [{"name": "Crew A", "done": 1}]
