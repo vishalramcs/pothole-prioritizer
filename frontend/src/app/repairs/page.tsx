@@ -14,6 +14,13 @@ export default function RepairsPage() {
   const [rows, setRows] = useState<RepairRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
+  const [counts, setCounts] = useState<Record<string, number> | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ by_status: { status: string; n: number }[] }>("/analytics/summary")
+      .then((s) => setCounts(Object.fromEntries(s.by_status.map((r) => [r.status, r.n]))))
+      .catch(() => setCounts(null)); // counts are a nicety; the tabs still work without them
+  }, [version]);
 
   useEffect(() => {
     let alive = true;
@@ -31,7 +38,7 @@ export default function RepairsPage() {
         {STATUSES.map((s) => (
           <button key={s} role="tab" type="button" aria-selected={tab === s} onClick={() => { setTab(s); setRows(null); }}
             className={`h-11 rounded-md px-5 font-semibold transition-colors duration-200 ${focusRing} ${tab === s ? "bg-primary text-white" : "bg-surface text-foreground hover:bg-border"}`}>
-            {s}
+            {s}{counts && ` (${counts[s] ?? 0})`}
           </button>
         ))}
       </div>
@@ -50,7 +57,7 @@ export default function RepairsPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.pothole_id} className="border-t border-background align-top">
+                <tr key={r.pothole_id} className="border-t border-background align-middle">
                   <td className="py-2">#{r.pothole_id}{r.sequence_no ? ` (stop ${r.sequence_no})` : ""}</td>
                   <td>{r.road_name ?? "unknown"}</td>
                   <td><BandChip band={r.priority_band} /> {r.priority_score.toFixed(2)}</td>

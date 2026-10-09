@@ -30,6 +30,22 @@ interface Evaluation {
 }
 
 const show = (v: number | null, unit = "") => (v === null ? "–" : `${v}${unit}`);
+const FCFS = "First come, first served";
+const label = (strategy: string) => (strategy === FCFS ? "Today's method (first come, first served)" : strategy);
+
+/** One sentence from this run's numbers: SRPPS against today's method (FCFS). */
+function verdict(ev: Evaluation): string | null {
+  const ours = ev.strategies.find((s) => s.strategy.startsWith("SRPPS"));
+  const fcfs = ev.strategies.find((s) => s.strategy === FCFS);
+  if (!ours || !fcfs) return null;
+  const change = (pct: number, what: string) =>
+    pct > 0 ? `cuts ${what} by ${pct}%` : pct < 0 ? `raises ${what} by ${Math.abs(pct)}%` : `keeps ${what} the same`;
+  const travelPct = fcfs.travel_km ? Math.round((1 - ours.travel_km / fcfs.travel_km) * 1000) / 10 : 0;
+  const critical = ours.critical_fixed_pct === null ? "" :
+    `, and fixes ${ours.critical_fixed_pct}% of Critical potholes within ${ev.critical_within} day${ev.critical_within === 1 ? "" : "s"}`;
+  return `Compared with today's method, SRPPS ${change(ours.exposure_reduction_vs_fcfs_pct ?? 0, "road-user risk")}, `
+    + `${change(travelPct, "crew travel")} (${ours.travel_km} km vs ${fcfs.travel_km} km)${critical}.`;
+}
 
 export default function EvaluationPage() {
   const [days, setDays] = useState("5");
@@ -81,20 +97,23 @@ export default function EvaluationPage() {
               </div>
             ))}
           </dl>
+          {verdict(ev) && (
+            <p role="status" className="rounded-lg bg-primary px-6 py-4 text-lg font-bold text-white">{verdict(ev)}</p>
+          )}
           <div className="overflow-x-auto rounded-lg bg-surface p-6">
             <table className="w-full text-left text-sm">
               <caption className="mb-3 text-left text-xl font-bold">Strategies compared</caption>
               <thead className={labelClass}>
                 <tr>
-                  <th className="py-2">Strategy</th><th>Repaired</th><th>Priority addressed</th>
+                  <th className="py-2">Strategy</th><th>Repaired</th><th>Importance covered</th>
                   <th>Critical fixed within {ev.critical_within} d</th><th>Avg days to repair Critical</th>
-                  <th>Road-user exposure</th><th>Exposure vs FCFS</th><th>Crew travel</th>
+                  <th>Road-user exposure</th><th>Risk vs today&apos;s method</th><th>Crew travel</th>
                 </tr>
               </thead>
               <tbody>
                 {ev.strategies.map((s) => (
                   <tr key={s.strategy} className={`border-t border-background ${s.strategy.startsWith("SRPPS") ? "bg-primary/10 font-bold" : ""}`}>
-                    <td className="py-2">{s.strategy}</td>
+                    <td className="py-2">{label(s.strategy)}</td>
                     <td>{s.repaired}</td>
                     <td>{s.priority_addressed_pct}%</td>
                     <td>{show(s.critical_fixed_pct, "%")}</td>
@@ -107,7 +126,7 @@ export default function EvaluationPage() {
               </tbody>
             </table>
             <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-muted">
-              <li>Priority addressed: share of the total priority score repaired within the plan.</li>
+              <li>Importance covered: share of the total priority score repaired within the plan.</li>
               <li>Average days to repair Critical: a Critical pothole not repaired in the plan counts as days + 1.</li>
               <li>Road-user exposure: sum of traffic × severity × days the pothole stays open (lower is better). It uses two
                 of the priority&apos;s own inputs, so priority-based strategies are expected to do well on it.</li>

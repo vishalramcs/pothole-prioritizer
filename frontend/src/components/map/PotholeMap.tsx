@@ -1,9 +1,13 @@
 "use client";
 
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
 import L from "leaflet";
+import "leaflet.markercluster";
+import { createLayerComponent } from "@react-leaflet/core";
 import { useEffect, useRef } from "react";
-import { Circle, MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { Circle, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { BandChip } from "@/components/ui/chips";
 import { BAND_COLOR, COLORS } from "@/lib/colors";
 import type { Pothole, Zone } from "@/lib/types";
 
@@ -39,6 +43,26 @@ function spread(potholes: Pothole[]): Map<number, [number, number]> {
   }
   return out;
 }
+
+/** Groups nearby markers; children are only the filtered potholes, so counts follow the filters. Neutral ink
+ * bubbles (not markercluster's default green/yellow) so they never read as a priority band. */
+const MarkerCluster = createLayerComponent<L.MarkerClusterGroup, { children: React.ReactNode }>(
+  (_props, ctx) => {
+    const instance = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 40,
+      iconCreateFunction: (c) => {
+        const n = c.getChildCount();
+        const size = n < 10 ? 34 : n < 100 ? 40 : 46;
+        return L.divIcon({
+          className: "", iconSize: [size, size],
+          html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${COLORS.ink};border:3px solid ${COLORS.white};color:#fff;display:flex;align-items:center;justify-content:center;font:700 14px system-ui" aria-label="${n} potholes">${n}</div>`,
+        });
+      },
+    });
+    return { instance, context: { ...ctx, layerContainer: instance } };
+  },
+);
 
 function FitOnce({ points }: { points: [number, number][] }) {
   const map = useMap();
@@ -79,7 +103,7 @@ function ClickAway({ onClick }: { onClick: () => void }) {
 export default function PotholeMap({ potholes, selectedId, onSelect, zones = [] }: {
   potholes: Pothole[];
   selectedId: number | null;
-  onSelect: (id: number | null) => void;
+  onSelect?: (id: number | null) => void; // without it, popups have no "Why?" link (zones page)
   zones?: Zone[];
 }) {
   const positions = spread(potholes);
@@ -91,7 +115,7 @@ export default function PotholeMap({ potholes, selectedId, onSelect, zones = [] 
       />
       <FitOnce points={[...positions.values()]} />
       <KeepInView target={selectedId === null ? null : positions.get(selectedId) ?? null} />
-      <ClickAway onClick={() => onSelect(null)} />
+      {onSelect && <ClickAway onClick={() => onSelect(null)} />}
       {zones.map((z) => (
         <Circle
           key={z.zone_id}
@@ -102,16 +126,33 @@ export default function PotholeMap({ potholes, selectedId, onSelect, zones = [] 
           <Tooltip>{`Zone ${z.zone_id}: ${z.pothole_count} potholes, avg priority ${z.avg_priority.toFixed(2)}`}</Tooltip>
         </Circle>
       ))}
-      {potholes.map((p) => (
-        <Marker
-          key={p.pothole_id}
-          position={positions.get(p.pothole_id)!}
-          icon={markerIcon(p, p.pothole_id === selectedId)}
-          title={`Pothole ${p.pothole_id}: ${p.priority_band} priority ${p.priority_score.toFixed(2)}, ${p.status}`}
-          alt={`Pothole ${p.pothole_id}, ${p.priority_band}`}
-          eventHandlers={{ click: () => onSelect(p.pothole_id) }}
-        />
-      ))}
+      <MarkerCluster>
+        {potholes.map((p) => (
+          <Marker
+            key={p.pothole_id}
+            position={positions.get(p.pothole_id)!}
+            icon={markerIcon(p, p.pothole_id === selectedId)}
+            title={`Pothole ${p.pothole_id}: ${p.priority_band} priority ${p.priority_score.toFixed(2)}, ${p.status}`}
+            alt={`Pothole ${p.pothole_id}, ${p.priority_band}`}
+          >
+            <Popup>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm">
+                <dt className="font-semibold">Pothole</dt><dd>#{p.pothole_id}</dd>
+                <dt className="font-semibold">Road</dt><dd>{p.road_name ?? "unknown"}</dd>
+                <dt className="font-semibold">Score</dt><dd>{p.priority_score.toFixed(2)}</dd>
+                <dt className="font-semibold">Band</dt><dd><BandChip band={p.priority_band} /></dd>
+                <dt className="font-semibold">Status</dt><dd>{p.status}</dd>
+              </dl>
+              {onSelect && (
+                <button type="button" onClick={() => onSelect(p.pothole_id)}
+                  className="mt-2 font-semibold text-primary underline decoration-2 underline-offset-4">
+                  Why? See the score breakdown
+                </button>
+              )}
+            </Popup>
+          </Marker>
+        ))}
+      </MarkerCluster>
     </MapContainer>
   );
 }

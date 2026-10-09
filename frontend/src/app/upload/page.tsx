@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Camera, ScanSearch } from "lucide-react";
+import { Camera, ScanSearch, UploadCloud } from "lucide-react";
 import { LocationPicker } from "@/components/map";
 import Button, { buttonClass } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
@@ -36,6 +36,7 @@ export default function UploadPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UploadResult | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     apiFetch<Road[]>("/roads").then(setRoads).catch((e) => setError(e.message));
@@ -89,11 +90,22 @@ export default function UploadPage() {
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <form onSubmit={submit} className="flex flex-col gap-5 rounded-lg bg-surface p-6" noValidate>
         <label className={fieldLabel}>Photo (JPG or PNG, up to {MAX_MB} MB) or short video (up to {MAX_VIDEO_MB} MB)
-          <input type="file" accept={[...IMAGE_TYPES, ...VIDEO_TYPES].join(",")} className={field}
-            onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
+          <span
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); pickFile(e.dataTransfer.files?.[0] ?? null); }}
+            className={`mt-1 flex cursor-pointer flex-col items-center gap-2 rounded-md border-2 border-dashed px-4 py-8 text-center normal-case tracking-normal transition-colors duration-200 has-[:focus-visible]:border-primary ${dragging ? "border-primary bg-surface" : "border-border bg-background hover:border-primary"}`}>
+            <UploadCloud aria-hidden size={32} strokeWidth={2.5} className="text-primary" />
+            <span className="text-base font-semibold text-foreground">
+              {file ? file.name : "Drag a photo or video here, or click to browse"}
+            </span>
+            {file && <span className="text-sm font-normal text-muted">Click or drop another file to replace it</span>}
+            <input type="file" accept={[...IMAGE_TYPES, ...VIDEO_TYPES].join(",")} className="sr-only"
+              onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
+          </span>
         </label>
         {preview && !result && (isVideo
-          ? <video src={preview} controls muted className="max-h-72 rounded-md" aria-label="Selected video preview" />
+          ? <video src={preview} controls muted className="max-h-72 rounded-md" aria-label={`Selected video: ${file?.name}`} />
           // eslint-disable-next-line @next/next/no-img-element -- local preview from an object URL
           : <img src={preview} alt="Selected photo preview" className="max-h-72 rounded-md object-contain" />)}
 
@@ -126,10 +138,18 @@ export default function UploadPage() {
           />
         </fieldset>
 
-        <Button type="submit" size="lg" disabled={busy || !file || !!coordError}>
-          <ScanSearch aria-hidden size={20} strokeWidth={2.5} />
-          {busy ? (isVideo ? "Analyzing video…" : "Analyzing image…") : "Detect potholes"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-4">
+          <Button type="submit" size="lg" disabled={busy || !file || !!coordError} aria-describedby="detect-missing">
+            <ScanSearch aria-hidden size={20} strokeWidth={2.5} />
+            {busy ? (isVideo ? "Analyzing video…" : "Analyzing image…") : "Detect potholes"}
+          </Button>
+          {!busy && (!file || coordError) && (
+            <p id="detect-missing" className="text-sm font-semibold text-muted">
+              Still needed: {[!file && "a photo or video", coordError && "a valid location"].filter(Boolean).join(" and ")}
+              {" "}(the road is optional)
+            </p>
+          )}
+        </div>
         {busy && (
           <p role="status" className="text-muted">
             {isVideo ? "Analyzing video… one frame per second, so this takes a while on a laptop." : "Analyzing image… this takes a few seconds on a laptop."}

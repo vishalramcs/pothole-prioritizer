@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Button from "@/components/ui/Button";
+import { focusRing } from "@/components/ui/styles";
 import { ApiError, apiFetch, json } from "@/lib/api";
 import type { Status } from "@/lib/types";
 
@@ -24,6 +25,7 @@ export default function StatusButtons({ potholeId, status, onChanged }: {
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirmRef = useRef<HTMLDialogElement>(null);
 
   async function change(to: Status) {
     setBusy(true);
@@ -41,16 +43,30 @@ export default function StatusButtons({ potholeId, status, onChanged }: {
   }
 
   if (ACTIONS[status].length === 0) return <span className="text-xs font-semibold uppercase tracking-wider text-muted">Final</span>;
+  // the first action is the main one for this status; "Mark repaired" is final, so it asks first
+  const run = (to: Status) => (to === "Repaired" ? confirmRef.current?.showModal() : change(to));
+  const [main, ...rest] = ACTIONS[status];
   return (
     <div>
-      <div className="flex flex-wrap gap-2">
-        {ACTIONS[status].map(({ label, to }) => (
-          <Button key={to} variant="outline" size="sm" disabled={busy} onClick={() => change(to)}>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button size="sm" disabled={busy} onClick={() => run(main.to)}>{main.label}</Button>
+        {rest.map(({ label, to }) => (
+          <button key={to} type="button" disabled={busy} onClick={() => run(to)}
+            className={`text-sm font-semibold text-primary underline decoration-2 underline-offset-4 disabled:opacity-50 ${focusRing}`}>
             {label}
-          </Button>
+          </button>
         ))}
       </div>
       {error && <p role="alert" className="mt-1 text-xs text-critical">{error}</p>}
+      <dialog ref={confirmRef} aria-labelledby={`confirm-${potholeId}`}
+        className="m-auto rounded-lg bg-surface p-6 text-foreground backdrop:bg-foreground/50">
+        <h2 id={`confirm-${potholeId}`} className="text-xl font-bold">Mark pothole #{potholeId} as repaired?</h2>
+        <p className="mt-1 text-sm text-muted">Repaired is final. If the pothole comes back, a new upload records it as a recurrence.</p>
+        <form method="dialog" className="mt-4 flex justify-end gap-3">
+          <Button type="submit" variant="secondary">Cancel</Button>
+          <Button onClick={() => { confirmRef.current?.close(); change("Repaired"); }}>Confirm</Button>
+        </form>
+      </dialog>
     </div>
   );
 }

@@ -55,7 +55,7 @@ export default function ZonesPlanPage() {
       subtitle="Each day the most urgent potholes are repaired; nearby ones are grouped into zones so crews drive less." />
     <div className="flex flex-col gap-4 lg:h-[75vh] lg:flex-row">
       <section aria-label="Zones map" className="h-[50vh] flex-1 lg:h-auto">
-        <PotholeMap potholes={potholes} zones={zones} selectedId={null} onSelect={() => {}} />
+        <PotholeMap potholes={potholes} zones={zones} selectedId={null} />
       </section>
 
       <div className="flex flex-col gap-6 overflow-y-auto rounded-lg bg-surface p-6 lg:w-[28rem]">
