@@ -6,7 +6,7 @@ from sqlalchemy import Connection, text
 # Pothole plus what the map and detail panel need from its road and upload.
 _SELECT = """
 SELECT p.*, r.name AS road_name, r.road_type, r.traffic_score, r.importance_score,
-       r.data_source AS road_data_source, u.image_width, u.image_height, u.media_type,
+       r.data_source AS road_data_source, u.image_width, u.image_height, u.media_type, u.is_demo,
        COALESCE(p.frame_storage_path, u.storage_path) AS image_path
 FROM potholes p
 JOIN uploads u ON u.upload_id = p.upload_id

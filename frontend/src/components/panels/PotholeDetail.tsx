@@ -85,6 +85,11 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
               x: shown.bbox_x, y: shown.bbox_y!, w: shown.bbox_w!, h: shown.bbox_h!, color: "#1f3864",
             }]}
           />
+          {shown.is_demo && (
+            <p className="rounded border border-muted px-2 py-1 text-xs text-muted">
+              Demo data: the location and road are made up; the detection is the model&apos;s real result on a sample photo.
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <BandChip band={shown.priority_band} />
             <span className="font-semibold">Priority {shown.priority_score.toFixed(2)}</span>

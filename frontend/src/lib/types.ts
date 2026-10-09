@@ -39,6 +39,7 @@ export interface Pothole {
   road_data_source: "mock" | "real" | null;
   image_width: number;
   image_height: number;
+  is_demo: boolean;
 }
 
 export interface BreakdownPart {

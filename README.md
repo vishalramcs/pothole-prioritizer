@@ -1,7 +1,5 @@
 # Smart Road Pothole Prioritization System (SRPPS)
 
-> Skeleton. Replace every **TODO** before submission. Nothing below is a claim that a feature works until it is built and tested.
-
 ## Team
 TODO: team name, members, roles (ML / backend / frontend)
 
@@ -13,49 +11,128 @@ Convert road images into a dynamic repair-priority map and optimize maintenance 
 - Submission deadline: TODO (YYYY-MM-DD HH:MM)
 
 ## Solution
-TODO: 3 to 5 sentences on what was actually built. Planned pipeline: image → detected pothole → priority score → map → repair order. See `docs/`.
+A reporter uploads a road photo or short video with its location and road. A pretrained YOLO model finds the potholes; each gets a relative severity from how much of the image it covers, and a 0 to 1 repair priority that also weighs the road's traffic, its importance, and repeat damage at that spot. Planners see every pothole on a map coloured by priority, group nearby ones into maintenance zones, enter their crews and how many repairs each can do per day, and get a day-by-day repair sequence. Marking repairs as started or done updates the map and the analytics.
+
+Pipeline: image → detected pothole → severity → priority score → map → zones → repair order.
 
 ## Features
-Tick only what is built and tested.
+Ticked = built, and covered by automated tests and a manual check in Chrome against the local database.
 
-- [ ] Pothole detection from images (P0)
-- [ ] Size and severity estimate (P0)
-- [ ] GPS map (P0)
-- [ ] Priority score (P0)
-- [ ] Repair tracking (P0)
-- [ ] Traffic and road importance (P1)
-- [ ] Repeat-damage detection (P1)
-- [ ] Maintenance zones (P1)
-- [ ] Video input (P2)
-- [ ] Repair sequence optimization (P2)
-- [ ] Analytics (P2)
+- [x] Pothole detection from images (P0)
+- [x] Size and severity estimate (P0) (relative, from the 2D image)
+- [x] GPS map (P0) (EXIF GPS, typed coordinates, or map click)
+- [x] Priority score (P0) with per-factor breakdown
+- [x] Repair tracking (P0) (Pending / Scheduled / In Progress / Repaired)
+- [x] Traffic and road importance (P1) (mock values, labelled "demo data")
+- [x] Repeat-damage detection (P1) (same pothole seen again; damage back after repair)
+- [x] Maintenance zones (P1) (DBSCAN)
+- [x] Video input (P2) (one frame per second, same pothole across frames merged)
+- [x] Repair sequence optimization (P2) (greedy, per crew and day; overflow reported)
+- [x] Analytics (P2) (charts with data tables)
+
+Not done: a screen to edit road traffic/importance (the API `PUT /api/roads/{id}` works; there is no form), hosted Supabase test (see How to Run).
 
 ## Technologies
-Decided stack: Python 3 + FastAPI (backend), Next.js + React + TypeScript + Tailwind CSS (frontend), Supabase (Postgres + Storage). Planned: Ultralytics YOLO, scikit-learn (DBSCAN), Leaflet, Chart.js. TODO: update to what was actually used.
+Python 3.12, FastAPI, SQLAlchemy 2 Core + psycopg 3, Ultralytics YOLO (YOLOv8s weights), scikit-learn (DBSCAN), OpenCV, Pillow; Next.js 16 (App Router) + React 19 + TypeScript + Tailwind CSS 4, react-leaflet + OpenStreetMap, Chart.js; PostgreSQL (Supabase, or a local Postgres through `pgserver` for development and offline demos). Exact versions: `backend/requirements.txt`, `frontend/package.json`.
 
 ## Architecture / Technical Approach
-TODO: short summary and diagram. Detailed design in `docs/02-technical-requirements.md`.
+```
+Browser (Next.js) ──JSON / multipart──> FastAPI ──> detector (YOLO) ──> severity ──> priority
+                                            │                                          │
+                                            ├── repeat matching (haversine, 15 m) ─────┤
+                                            ├── zones (DBSCAN) ──> planner (greedy) ───┤
+                                            └── storage (Supabase bucket or disk)      v
+                                                                                  Postgres
+```
+The browser only talks to the Python API. Routers parse HTTP, services hold the logic, repositories hold the SQL. Every request runs in one database transaction that commits **before** the response is sent, so a failed save is never reported as success. Formulas, constants and their sources: `docs/02-technical-requirements.md` section 4. Every constant lives in the `config` table.
+
+| What | Where |
+|---|---|
+| Detection | `backend/app/services/detector.py` |
+| Severity / priority | `backend/app/services/severity.py`, `priority.py` |
+| Upload pipeline, repeat matching | `backend/app/services/uploads.py`, `matching.py` |
+| Zones, planner | `backend/app/services/zones.py`, `planner.py` |
+| Status rules | `backend/app/services/status.py` |
+| Video | `backend/app/services/video.py` |
+| Pages | `frontend/src/app/` |
+
+Measured on the development laptop (CPU only): detection takes about 0.12 s per 1280 px photo once the model is loaded; the first request after start loads the model and takes a few seconds; a 4-second test clip took about 9 s end to end.
 
 ## How to Run
-Draft in `docs/07-project-structure.md`, section 4 (tested on the skeleton against a local Postgres, not on hosted Supabase). TODO: re-test on a clean checkout with your Supabase project, and add how to load demo data.
+Tested on Windows 11 with Python 3.12 and Node 24, against a local Postgres. **Not yet tested against a hosted Supabase project.**
+
+**1. Database.** Pick one:
+- *Supabase:* in the SQL Editor run, in order, `supabase/migrations/0001_init_schema.sql`, `0002_enable_rls.sql`, `0003_demo_flag.sql`, then `supabase/seed.sql`. Create a private Storage bucket `road-images`. Use the **Session pooler** connection string.
+- *Local (no internet needed for the database):* step 2 below starts one.
+
+**2. Backend** (first terminal)
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate             # macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt     # large: ultralytics pulls in torch
+python scripts/download_model.py    # detector weights -> ml/weights/pothole.pt
+cp .env.example .env                # Windows: copy .env.example .env
+# Local database instead of Supabase:
+pip install pgserver
+python scripts/local_db.py          # prints DATABASE_URL=...; put it in .env and blank SUPABASE_URL
+                                    # (with no SUPABASE_URL, images are stored in backend/uploads/)
+python scripts/load_demo_data.py    # optional demo potholes (labelled as demo data in the UI)
+uvicorn app.main:app                # http://localhost:8000/docs
+```
+Check: `http://localhost:8000/api/health/db` says `reachable`.
+
+The local Postgres keeps running in the background and gets a new port each time it starts: after a reboot, run `python scripts/local_db.py` again and update `DATABASE_URL`. Stop it with `python scripts/local_db.py --stop`.
+
+**3. Frontend** (second terminal)
+```bash
+cd frontend
+npm ci
+cp .env.example .env.local          # only needed if the API is not on localhost:8000
+npm run dev                         # http://localhost:3000
+```
+
+**Tests**
+```bash
+cd backend
+set TEST_DATABASE_URL=<the same local DATABASE_URL>   # macOS/Linux: export TEST_DATABASE_URL=...
+pytest                              # 92 tests; database tests are skipped without TEST_DATABASE_URL
+cd ../frontend && npm run lint && npm run build
+```
+Database tests run inside a transaction that is rolled back, so they leave no data behind. Use a local database for them, not the demo Supabase project.
 
 ## Demo
-TODO: demo sequence for judges. Draft in `docs/03-app-flow.md` (section 8).
+1. Run `python scripts/load_demo_data.py`, open **Zones and Plan** and click **Recompute zones**, then start on the **Map**.
+2. **Upload** a photo from `sample_data/images` on *Demo Main Road*: boxes, severity and priority appear.
+3. Upload the same photo at the same coordinates again: the results say "Yes, same pothole (seen again)" and its priority rises (repeat damage).
+4. **Zones and Plan**: recompute zones, keep the 2 seeded crews, set 3 days, **Generate plan**.
+5. **Repairs**: mark one Scheduled pothole repaired, then show the **Map** (hollow marker with status "All") and **Analytics**.
+
+Prepared answers: "Why is the High pothole on Demo Lane only Moderate?" Priority is about impact, not only damage: with the seeded traffic of 0.20 a local road can reach at most 0.66 (TRD 4.5). "Why is everything in the demo High severity?" All sample photos are close-ups, so each pothole fills much of the frame; road-level photos give Medium and Low.
 
 ## External Resources
-TODO: confirm and list with licences.
-- Pothole detection model: TODO (name, source, licence)
-- Dataset(s): TODO (e.g. a Roboflow pothole set; check its licence)
-- Libraries: TODO
-- Map tiles: OpenStreetMap (attribution required)
+- **Pothole detection model:** [Samdutse/pothole-yolov8](https://huggingface.co/Samdutse/pothole-yolov8) (YOLOv8s fine-tuned on the Smartathon pothole dataset from Roboflow Universe). **Its model card states no licence**: fine for building and judging, but ask the author before publishing or selling. Drop-in alternative: [tahaUgan/pothole-yolo11n](https://huggingface.co/tahaUgan/pothole-yolo11n) (CC-BY-4.0); change `MODEL_URL` in `backend/scripts/download_model.py`. In our comparison on 10 photos (7 with potholes, 3 clean roads) the first model boxed the pothole in 6 of the 7; the second found nothing in 3 close-up shots and boxed a patch of sky on a clean road.
+- **Ultralytics YOLO:** AGPL-3.0 (as far as we know; check before any commercial use).
+- **Sample photos:** 5 photos from Wikimedia Commons (CC0, CC BY 4.0, CC BY-SA 4.0); authors and links in `sample_data/README.md`.
+- **Libraries:** FastAPI, SQLAlchemy, psycopg (LGPL), Pillow, scikit-learn, OpenCV, pgserver, Next.js, React, Tailwind CSS, Leaflet (BSD-2), react-leaflet, Chart.js, react-chartjs-2 (open source; check each licence).
+- **Map tiles:** © OpenStreetMap contributors (ODbL), attribution shown on every map.
+- **Frontend base:** generated by `create-next-app`.
+- **Idea reference:** [Smart-Ai-Pothole-Detector](https://github.com/JordanMicahBennett/Smart-Ai-Pothole-Detector------Powered-by-Tensorflow-TensorRT-on-Google-Colab-and-or-Jetson-Nano) by Jordan Bennett (no code or model used).
 
 ## AI Usage
-Claude was used for planning and drafting the documents in `docs/`, and for the project skeleton (backend health endpoint and stubs, Supabase migrations, frontend layout/nav/tokens). The Next.js base was generated by `create-next-app`. TODO: add any other significant AI help (code generation, debugging, tests) and state that the team reviewed, tested, modified, and integrated it.
+Claude (Anthropic) was used for planning and drafting the documents in `docs/` and the project skeleton, and then, during the build window, **wrote most of the application code and tests**: the backend services, endpoints and SQL, the frontend pages and components, the demo data script and this README. It also found and fixed two skeleton bugs (database commits happened after the response was sent; error responses did not match the API spec), each with a test. Commits carry a `Co-Authored-By: Claude` line. TODO (team): state here that you reviewed, tested, modified and can explain the code, and add anything you changed yourselves.
 
 ## Limitations
-Known so far (update as you build):
-- Severity is a relative 2D estimate, not true depth
-- Traffic density and road importance are mock/lookup values
-- All potholes in one photo share that photo's GPS point (roughly 5 to 10 m accuracy)
-- Greedy repair sequencing is not globally optimal
-- With the seeded demo data, a pothole on the local road cannot reach Critical
+- Severity is a relative 2D estimate (share of the image the box covers), not depth; camera distance and angle change it.
+- Traffic density and road importance are mock values, labelled "demo data" in the UI.
+- All potholes in one photo or video clip share its single GPS point (phone GPS is roughly 5 to 10 m off).
+- With the seeded mock data a pothole on the local road cannot reach Critical (max 0.66). Intended: priority is about impact.
+- The detector was checked on only about 15 photos. It can miss potholes (at the 0.40 confidence cut-off it found nothing in one road-level pothole photo, and it ignored a broken drain grate) and can raise false alarms (it boxed a repaired crack on a clean road). It was trained on its own dataset, not on local roads.
+- Weights and thresholds are unvalidated assumptions, not a road-safety standard.
+- Zones use straight-line distance, not driving distance.
+- Greedy sequencing is not globally optimal; a zone goes to one crew, and potholes that don't fit that crew stay unscheduled even if another crew has spare capacity (as specified in TRD 4.7).
+- The planner assumes a fixed number of repairs per crew per day regardless of pothole size or repair time.
+- Video: one frame per second, at most 120 frames (2 minutes); the same pothole is merged only across consecutive sampled frames by box overlap, which fails when the camera moves fast.
+- A crew with any finished repairs cannot be deleted (its orders are repair history).
+- Needs internet for map tiles; needs internet for Supabase unless the local Postgres is used.
+- Photos may contain faces or number plates; we store only the image and its location.

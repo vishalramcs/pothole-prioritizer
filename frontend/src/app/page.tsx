@@ -64,7 +64,10 @@ export default function MapDashboardPage() {
             <li className="text-muted">Bigger marker = higher score · hollow = repaired</li>
           </ul>
         </div>
-        <p className="mt-auto text-xs text-muted">{shown.length} of {all?.length ?? 0} potholes shown</p>
+        <p className="mt-auto text-xs text-muted">
+          {shown.length} of {all?.length ?? 0} potholes shown
+          {shown.some((p) => p.is_demo) && <> · includes {shown.filter((p) => p.is_demo).length} <b>demo data</b> potholes</>}
+        </p>
       </aside>
 
       <section aria-label="Map" className="relative h-[60vh] flex-1 lg:h-auto">
