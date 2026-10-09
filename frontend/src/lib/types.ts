@@ -4,6 +4,9 @@ export type Status = "Pending" | "Scheduled" | "In Progress" | "Repaired";
 export type Band = "Low" | "Moderate" | "Critical";
 export type SeverityLevel = "Low" | "Medium" | "High";
 
+export const STATUSES: Status[] = ["Pending", "Scheduled", "In Progress", "Repaired"];
+export const BANDS: Band[] = ["Critical", "Moderate", "Low"];
+
 export interface Pothole {
   pothole_id: number;
   upload_id: number;
@@ -16,6 +19,7 @@ export interface Pothole {
   bbox_w: number | null;
   bbox_h: number | null;
   confidence: number | null;
+  area_ratio: number | null;
   severity_score: number;
   severity_level: SeverityLevel;
   priority_score: number;
@@ -27,4 +31,58 @@ export interface Pothole {
   first_detected_at: string;
   last_detected_at: string;
   repaired_at: string | null;
+  // joined from roads and uploads
+  road_name: string | null;
+  road_type: RoadType | null;
+  traffic_score: number | null;
+  importance_score: number | null;
+  road_data_source: "mock" | "real" | null;
+  image_width: number;
+  image_height: number;
+}
+
+export interface BreakdownPart {
+  value: number;
+  weight: number;
+  contribution: number;
+}
+
+export interface PotholeDetail extends Pothole {
+  breakdown: Record<"severity" | "traffic" | "importance" | "repeat", BreakdownPart>;
+}
+
+export interface Road {
+  road_id: number;
+  name: string;
+  road_type: RoadType;
+  importance_score: number;
+  traffic_score: number;
+  data_source: "mock" | "real";
+}
+
+export interface UploadResult {
+  upload_id: number;
+  lat: number;
+  lng: number;
+  gps_source: "exif" | "manual" | "map_click";
+  image_width: number;
+  image_height: number;
+  potholes: Pothole[];
+}
+
+export interface RepairRow {
+  pothole_id: number;
+  status: Status;
+  priority_band: Band;
+  priority_score: number;
+  severity_level: SeverityLevel;
+  zone_id: number | null;
+  repaired_at: string | null;
+  road_name: string | null;
+  order_id: number | null;
+  crew_id: number | null;
+  crew_name: string | null;
+  sequence_no: number | null;
+  planned_date: string | null;
+  completed_at: string | null;
 }
