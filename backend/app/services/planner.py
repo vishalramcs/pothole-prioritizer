@@ -1,7 +1,12 @@
-"""Crew assignment, greedy sequencing, overflow reporting (TRD 4.7).
+"""Crew assignment, greedy sequencing, overflow reporting (TRD 4.7, revised after evaluation).
 
-Not optimal like a full travelling-salesman solution, but fast and explainable:
-zones by average Pending priority -> crew with most capacity left -> greedy stop order inside the zone.
+Priority decides WHAT is repaired, location decides HOW crews drive:
+1. Each day takes the next highest-priority potholes, as many as all crews can repair that day.
+2. That day's potholes are grouped by zone; zones go (most urgent first) to the crew with the most capacity
+   left that day, split only when a zone doesn't fit; stops inside a zone are ordered greedily.
+The first version ranked whole zones by average priority, which let one big zone of minor potholes delay a
+Critical one elsewhere; the Evaluation page measured it (fewer Critical fixed, more travel), so it was replaced.
+Not optimal like a full travelling-salesman solution, but fast and explainable.
 """
 from datetime import date, timedelta
 
@@ -34,34 +39,35 @@ def greedy_order(stops: list[dict]) -> list[dict]:
 
 
 def build_plan(pending: list[dict], crews: list[dict], days: int, start_date: date) -> tuple[list[dict], list[int]]:
-    """Steps 3-5 without touching the database (the evaluation simulates with it too).
+    """Without touching the database (the evaluation simulates with it too).
     pending: potholes carrying zone_id. Returns (scheduled stops, unscheduled pothole ids)."""
-    by_zone: dict[int, list[dict]] = {}
-    for p in pending:
-        by_zone.setdefault(p["zone_id"], []).append(p)
-    avg = lambda ps: sum(p["priority_score"] for p in ps) / len(ps)  # noqa: E731
-    # 3. zones by average Pending priority; ties by lowest pothole id so replanning gives the same result
-    zone_order = sorted(by_zone.values(), key=lambda ps: (-avg(ps), min(p["pothole_id"] for p in ps)))
-
-    left = {c["crew_id"]: c["capacity_per_day"] * days for c in crews}
+    ranked = sorted(pending, key=lambda p: (-p["priority_score"], p["pothole_id"]))
+    per_day = sum(c["capacity_per_day"] for c in crews)
     seq = {c["crew_id"]: 0 for c in crews}
-    by_id = {c["crew_id"]: c for c in crews}
-    scheduled, unscheduled = [], []
-    for members in zone_order:
-        crew_id = max(left, key=lambda c: (left[c], -c))  # 4. most capacity left; ties: lowest crew id
-        for p in greedy_order(members):
-            if left[crew_id] == 0:  # doesn't fit: stays Pending and is reported
-                unscheduled.append(p["pothole_id"])
-                continue
-            left[crew_id] -= 1
-            seq[crew_id] += 1
-            planned = start_date + timedelta(days=(seq[crew_id] - 1) // by_id[crew_id]["capacity_per_day"])
-            scheduled.append({
-                "pothole_id": p["pothole_id"], "crew_id": crew_id, "crew_name": by_id[crew_id]["name"],
-                "sequence_no": seq[crew_id], "planned_date": planned.isoformat(), "zone_id": p["zone_id"],
-                "road_name": p["road_name"], "priority_score": p["priority_score"], "priority_band": p["priority_band"],
-            })
-    return scheduled, unscheduled
+    scheduled = []
+    for day in range(days):
+        today = ranked[day * per_day:(day + 1) * per_day]
+        by_zone: dict[int, list[dict]] = {}
+        for p in today:
+            by_zone.setdefault(p["zone_id"], []).append(p)
+        # most urgent zone first; ties by lowest pothole id so replanning gives the same result
+        zone_order = sorted(by_zone.values(), key=lambda ps: (-ps[0]["priority_score"], ps[0]["pothole_id"]))
+        left = {c["crew_id"]: c["capacity_per_day"] for c in crews}
+        for members in zone_order:
+            route = greedy_order(members)
+            while route:
+                crew = max(crews, key=lambda c: (left[c["crew_id"]], -c["crew_id"]))
+                take, route = route[:left[crew["crew_id"]]], route[left[crew["crew_id"]]:]
+                left[crew["crew_id"]] -= len(take)
+                for p in take:
+                    seq[crew["crew_id"]] += 1
+                    scheduled.append({
+                        "pothole_id": p["pothole_id"], "crew_id": crew["crew_id"], "crew_name": crew["name"],
+                        "sequence_no": seq[crew["crew_id"]], "planned_date": (start_date + timedelta(days=day)).isoformat(),
+                        "zone_id": p["zone_id"], "road_name": p["road_name"], "priority_score": p["priority_score"],
+                        "priority_band": p["priority_band"],
+                    })
+    return scheduled, [p["pothole_id"] for p in ranked[days * per_day:]]
 
 
 def plan(conn: Connection, days: int, start_date: date | None = None) -> dict:

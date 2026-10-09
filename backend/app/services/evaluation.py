@@ -9,7 +9,7 @@ Metrics (what the problem statement asks to measure):
 - priority_addressed_pct: share of total priority repaired within the horizon
 - critical_fixed_pct: share of Critical potholes repaired within `critical_within` days
 - avg_days_critical: average repair day of Critical potholes (not repaired = days + 1)
-- exposure: sum of traffic x severity x days the pothole stays open (lower = less risk to road users)
+- exposure: sum of traffic x severity x days the pothole stays open, not repaired = days + 1 (lower = less risk)
 - travel_km: crews' straight-line travel between stops, per day (no depot)
 
 Honest caveat: exposure uses traffic and severity, which are also priority inputs, so a priority strategy is
@@ -71,7 +71,8 @@ def metrics(plan: dict[int, list[list[dict]]], pool: list[dict], days: int, crit
                                               for p in critical) / len(critical), 1) if critical else None,
         "avg_days_critical": round(sum(repair_day.get(p["pothole_id"], days + 1) for p in critical) / len(critical), 2)
         if critical else None,
-        "exposure": round(sum((p.get("traffic_score") or 0) * p["severity_score"] * repair_day.get(p["pothole_id"], days)
+        # still open after the plan counts as days + 1 (as for avg_days_critical), so fixing on the last day counts
+        "exposure": round(sum((p.get("traffic_score") or 0) * p["severity_score"] * repair_day.get(p["pothole_id"], days + 1)
                               for p in pool), 2),
         "travel_km": round(travel_m / 1000, 2),
     }

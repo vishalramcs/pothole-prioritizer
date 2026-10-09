@@ -177,3 +177,16 @@ def test_analytics_summary(client, board):
     assert s["hotspots"][0]["pothole_id"] == b and s["hotspots"][0]["repeat_count"] == 2
     assert s["avg_days_to_repair"] == 0.0
     assert s["done_by_crew"] == [{"name": "Crew A", "done": 1}]
+
+
+def test_critical_in_a_big_minor_zone_is_not_delayed(client, board):
+    """Found by the evaluation: ranking whole zones by average priority let a small zone (avg 0.6) take the
+    day's capacity while the 0.9 pothole sat in a big zone of minor ones (avg 0.42)."""
+    crew(client, "Crew A", 2)
+    critical = add(board, 30.0, 30.0, 0.9)
+    for i in range(1, 5):
+        add(board, 30.0 + i * 30 * M, 30.0, 0.3)
+    add(board, 31.0, 30.0, 0.6)
+    add(board, 31.0 + 30 * M, 30.0, 0.6)
+    stops = client.post("/api/plan", json={"days": 1}).json()["scheduled"]
+    assert critical in [s["pothole_id"] for s in stops]

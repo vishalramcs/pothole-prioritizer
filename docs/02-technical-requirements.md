@@ -112,23 +112,28 @@ repeat_score = min(repeat_count / REPEAT_CAP, 1.0)       # REPEAT_CAP default 3
 priority = W_SEVERITY*severity_score
          + W_TRAFFIC*traffic_score
          + W_IMPORTANCE*importance_score
-         + W_REPEAT*repeat_score          # defaults 0.40 / 0.25 / 0.20 / 0.15
+         + W_REPEAT*repeat_score
+         + W_FACILITY*facility_score      # defaults 0.40 / 0.20 / 0.15 / 0.10 / 0.15 (v0.5)
+facility_score = exp(-distance_m / FACILITY_DECAY_M)   # nearest hospital, clinic, school or fire station
+                                                         # (OpenStreetMap), FACILITY_DECAY_M default 500
 band     = Critical if priority >= BAND_CRITICAL (0.70)
            Moderate if priority >= BAND_MODERATE (0.40)
            Low      otherwise
 ```
 Weights must sum to 1.0 (checked at startup and on every config update, tolerance 0.001). The same formula is modelled in `pothole_hackathon_plan.xlsx` for easy tuning.
 
+**Why these weights (v0.5).** The location factor (problem statement: "location") was added after v0.4. The weights were chosen so two checks hold, both unit-tested: a fully severe highway pothole is Critical (0.73), and a medium pothole right next to a hospital on a local road (0.435) outranks a small one on the highway (0.41). The cost: the facility factor only wins that comparison within about 100 m of the facility.
+
 **Score ceilings (read this before the demo).** With the seeded demo roads, the highest score a pothole can reach (severity 1.0, repeat 1.0) is:
 
-| Road type | Importance | Traffic (mock) | Max score | Can be Critical? |
-|---|---|---|---|---|
-| highway | 1.0 | 0.90 | 0.975 | yes |
-| arterial | 0.8 | 0.70 | 0.885 | yes |
-| collector | 0.5 | 0.60 | 0.800 | yes |
-| local | 0.3 | 0.20 | 0.660 | **no** (stays Moderate at most) |
+| Road type | Importance | Traffic (mock) | Max, no facility near | Max, next to a facility | Can be Critical? |
+|---|---|---|---|---|---|
+| highway | 1.0 | 0.90 | 0.830 | 0.980 | yes |
+| arterial | 0.8 | 0.70 | 0.760 | 0.910 | yes |
+| collector | 0.5 | 0.60 | 0.695 | 0.845 | only with repeats or a facility near |
+| local | 0.3 | 0.20 | 0.585 | 0.735 | **only next to a facility** |
 
-This is **intended**: a quiet local street should not outrank a busy road. It follows from the seeded traffic value (0.20), not from the road type itself. If someone raises a local road's traffic score, it can reach Critical. Judges may ask; the answer is "priority is about impact, not only damage."
+This is **intended**: a quiet local street should not outrank a busy road unless something critical is next to it. Judges may ask; the answer is "priority is about impact, not only damage."
 
 **Optional safety override (off by default).** Priority is not the same as danger: a very dangerous pothole on a quiet street should not be easy to ignore. If `SAFETY_FLOOR_SEVERITY` is set above 0 (for example 0.90), any pothole with `severity_score` at or above it is shown as **Critical** regardless of its priority score, and the score breakdown says "safety override". The score itself is not changed. Default is 0 (disabled), so the demo behaves as described above until the team decides.
 
@@ -144,17 +149,24 @@ Inputs: the `crews` table (each crew has `capacity_per_day`), `days` (how many d
 
 1. Reset any earlier plan: potholes that are **Scheduled** go back to **Pending** and their repair orders are deleted. **In Progress** potholes are left alone and not counted.
 2. Recompute zones (4.6).
-3. Rank zones by the average priority of their **Pending** members, highest first.
-4. For each zone in that order: give it to the crew with the most remaining capacity (ties: lowest crew id). Order the zone's potholes greedily: start with the highest priority, then repeatedly take the one with the best `priority / (1 + distance_km)` from the last pick. Assign potholes to that crew in that order until the crew's capacity is full. Potholes that don't fit stay Pending.
-5. Per crew, `sequence_no` counts 1, 2, 3, ... across its zones in assignment order. `planned_date = start_date + floor((sequence_no - 1) / capacity_per_day)` days.
+3. **Priority decides what is repaired:** day 1 takes the highest-priority Pending potholes, as many as all crews can repair in a day; day 2 the next ones; and so on.
+4. **Location decides how crews drive:** each day's potholes are grouped by zone. Zones go, most urgent first, to the crew with the most capacity left that day (ties: lowest crew id); a zone is split only when it doesn't fit. Inside a zone, stops are ordered greedily: start with the highest priority, then repeatedly take the best `priority / (1 + distance_km)` from the last stop.
+5. Per crew, `sequence_no` counts 1, 2, 3, ... across days; `planned_date` is the day.
 6. Each scheduled pothole becomes **Scheduled** and gets one repair order.
 
+**Revised in v0.5 after measuring it (4.10).** v0.4 ranked whole zones by their average priority and gave each zone to one crew. The evaluation showed one big zone of minor potholes delaying a Critical pothole elsewhere (80% vs 100% of Critical fixed on day 1 on 58 real uploads) and more travel than plain priority order. A regression test keeps that case fixed.
+
 Edge cases:
-- If `days * total capacity` is smaller than the Pending count, the lowest-priority zones (and the tail of the last zone) are left out. The response lists `unscheduled_count` and the ids, and the UI shows a banner.
+- If `days * total capacity` is smaller than the Pending count, the lowest-priority potholes are left out. The response lists `unscheduled_count` and the ids, and the UI shows a banner.
 - No crews, or total capacity 0: respond 400 "Add at least one crew".
 - No Pending potholes: respond 200 with an empty plan and a "nothing to plan" message.
 
 Trade-off: not optimal like a full travelling-salesman solution, but fast and explainable in 30 seconds.
+
+### 4.10 Evaluating the prioritization
+`GET /api/evaluation` (Evaluation page) simulates, without saving anything, the same crews and days on the open potholes under five strategies: SRPPS (the planner above), priority only (no zones), first come first served, severity only, and random (seed 42). Metrics: share of total priority repaired; % of Critical potholes repaired within X days; average repair day of Critical potholes (not repaired = days + 1); road-user exposure = sum of traffic x severity x days open (not repaired = days + 1) and its change vs first come first served; crew travel km (straight line between consecutive stops each day). Sensitivity: each weight -20% and +20% (all weights rescaled to sum to 1), with top-N overlap and Spearman correlation against the base ranking.
+
+Caveat: exposure uses traffic and severity, which are also priority inputs, so priority-based strategies are expected to win on it; the evaluation shows by how much, and what it costs in travel.
 
 ### 4.8 Video (P2)
 Sample one frame every `FRAME_INTERVAL_S` (assumption: 1 s). Save each frame that has detections to `uploads/<upload_id>/frame_<n>.jpg` and record `frame_index`, `frame_time_s`, and `frame_path` on the pothole. The same physical pothole shows up in consecutive frames, so for video only: merge detections in consecutive sampled frames when the box overlap (IoU) is at least `VIDEO_IOU_MIN` (assumption: 0.30), keeping the highest-confidence detection. Cross-upload matching (4.4) then applies as usual. Location is the single coordinate the user gives for the clip, so all potholes from one clip share it. Limitation: if the camera moves fast, box overlap merging is unreliable. Video is P2; nothing else depends on it.
