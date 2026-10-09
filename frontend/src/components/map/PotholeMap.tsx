@@ -6,10 +6,11 @@ import L from "leaflet";
 import "leaflet.markercluster";
 import { createLayerComponent } from "@react-leaflet/core";
 import { useEffect, useRef } from "react";
-import { Circle, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { Circle, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import { BandChip } from "@/components/ui/chips";
 import { BAND_COLOR, COLORS } from "@/lib/colors";
 import type { Pothole, Zone } from "@/lib/types";
+import LiveMap from "./LiveMap";
 
 export const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];
 
@@ -118,7 +119,7 @@ export default function PotholeMap({ potholes, selectedId, onSelect, zones = [],
 }) {
   const positions = spread(potholes);
   return (
-    <MapContainer center={DEFAULT_CENTER} zoom={13} className="h-full w-full rounded-lg">
+    <LiveMap center={DEFAULT_CENTER} zoom={13} className="h-full w-full rounded-lg">
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -166,6 +167,6 @@ export default function PotholeMap({ potholes, selectedId, onSelect, zones = [],
           </Marker>
         ))}
       </MarkerCluster>
-    </MapContainer>
+    </LiveMap>
   );
 }

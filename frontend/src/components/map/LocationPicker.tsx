@@ -3,8 +3,9 @@
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect } from "react";
-import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { CircleMarker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { COLORS } from "@/lib/colors";
+import LiveMap from "./LiveMap";
 import { DEFAULT_CENTER } from "./PotholeMap";
 
 /** The map can be created before its box has its final size; re-measure whenever the box changes. */
@@ -30,7 +31,7 @@ export default function LocationPicker({ value, onPick }: {
 }) {
   return (
     // scrollWheelZoom off: on a form, scrolling the page over the map should scroll the page
-    <MapContainer center={value ?? DEFAULT_CENTER} zoom={14} scrollWheelZoom={false} className="h-56 w-full rounded-lg">
+    <LiveMap center={value ?? DEFAULT_CENTER} zoom={14} scrollWheelZoom={false} className="h-56 w-full rounded-lg">
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -38,6 +39,6 @@ export default function LocationPicker({ value, onPick }: {
       <TrackSize />
       <ClickToPick onPick={onPick} />
       {value && <CircleMarker center={value} radius={8} pathOptions={{ color: COLORS.primary, fillOpacity: 0.9 }} />}
-    </MapContainer>
+    </LiveMap>
   );
 }
