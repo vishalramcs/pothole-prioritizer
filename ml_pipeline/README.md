@@ -72,7 +72,7 @@ waiting days dominate that sum. FCFS and random repair more potholes because the
 
 **Scheduling:** knapsack picks priority 25.80 for INR 199,975 vs greedy priority-per-rupee 25.76 (greedy is within
 0.2% of optimal here). Grouping the selected repairs by DBSCAN cluster saves **13.8%** crew travel (330 vs 383 km
-over 10 crew-days) against visiting them in plain priority order. Travel is large because the random points span
+over 10 days with 2 crews) against visiting them in plain priority order. Travel is large because the random points span
 a 16 km box.
 
 **Sensitivity:** changing any one context weight of the label formula by -20% or +20% left the top 10 unchanged in
