@@ -11,6 +11,7 @@ const PARTS = [
   { key: "traffic", label: "Traffic" },
   { key: "importance", label: "Road importance" },
   { key: "repeat", label: "Repeat damage" },
+  { key: "facility", label: "Near hospital / school / fire station" },
 ] as const;
 
 /** Photo with the detected box drawn over it (box is in stored-image pixels, so use percentages). */
@@ -133,6 +134,8 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
             <dt className="text-muted">Seen</dt><dd>{shown.detection_count}× · returned after repair {shown.recurrence_count}×</dd>
             <dt className="text-muted">First detected</dt><dd>{new Date(shown.first_detected_at).toLocaleString()}</dd>
             <dt className="text-muted">Last detected</dt><dd>{new Date(shown.last_detected_at).toLocaleString()}</dd>
+            <dt className="text-muted">Nearest facility</dt>
+            <dd>{shown.nearest_facility ? `${shown.nearest_facility}, ${Math.round(shown.nearest_facility_m!)} m (OpenStreetMap)` : "none within 2.5 km"}</dd>
             <dt className="text-muted">Zone</dt><dd>{shown.zone_id ?? "none yet"}</dd>
           </dl>
 

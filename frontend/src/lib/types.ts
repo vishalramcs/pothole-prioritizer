@@ -40,6 +40,9 @@ export interface Pothole {
   image_width: number;
   image_height: number;
   is_demo: boolean;
+  facility_score: number;
+  nearest_facility: string | null;
+  nearest_facility_m: number | null;
 }
 
 export interface BreakdownPart {
@@ -49,7 +52,7 @@ export interface BreakdownPart {
 }
 
 export interface PotholeDetail extends Pothole {
-  breakdown: Record<"severity" | "traffic" | "importance" | "repeat", BreakdownPart>;
+  breakdown: Record<"severity" | "traffic" | "importance" | "repeat" | "facility", BreakdownPart>;
 }
 
 export interface Road {

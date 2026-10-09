@@ -16,7 +16,8 @@ from app.core.db import get_engine  # noqa: E402
 from app.repositories import facilities as repo  # noqa: E402
 from app.services import facilities, priority  # noqa: E402
 
-OVERPASS = "https://overpass-api.de/api/interpreter"
+# Main server first, then a public mirror (the main one often answers 504 when busy)
+OVERPASS = ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter")
 DEFAULT_BOX = (12.90, 77.53, 13.02, 77.68)
 
 
@@ -24,10 +25,15 @@ def fetch(box: tuple[float, ...]) -> dict:
     s, w, n, e = box
     query = (f'[out:json][timeout:90];nwr["amenity"~"^({"|".join(facilities.KINDS)})$"]({s},{w},{n},{e});'
              "out center tags;")
-    req = urllib.request.Request(OVERPASS, data=urllib.parse.urlencode({"data": query}).encode(),
-                                 headers={"User-Agent": "SRPPS hackathon project (facility import)"})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return json.load(r)
+    body = urllib.parse.urlencode({"data": query}).encode()
+    for url in OVERPASS:
+        try:
+            req = urllib.request.Request(url, data=body, headers={"User-Agent": "SRPPS hackathon project (facility import)"})
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.load(r)
+        except OSError as exc:  # HTTPError and timeouts are OSErrors
+            print(f"{url} failed: {exc}")
+    sys.exit("No Overpass server answered; nothing was changed. Try again later.")
 
 
 def main() -> None:
