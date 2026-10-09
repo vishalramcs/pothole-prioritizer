@@ -1,13 +1,14 @@
 """Image upload pipeline (TRD 5, POST /uploads): validate, locate, detect, store, score, save."""
 import io
 import uuid
+from datetime import datetime, timezone
 
 from PIL import Image, ImageOps
 from sqlalchemy import Connection
 
 from app.core.config import get_settings
 from app.repositories import config, potholes, roads, uploads
-from app.services import detector, gps, priority, severity, storage
+from app.services import detector, gps, matching, priority, severity, storage
 
 FORMATS = {"JPEG", "PNG"}
 MAX_SIDE = 4000  # TRD 6: longest side; bigger images are shrunk before inference
@@ -63,16 +64,51 @@ def process_image(conn: Connection, data: bytes, road_id: int, lat: float | None
                                gps_source=gps_source, road_id=road_id, image_width=img.width,
                                image_height=img.height)
 
-    saved = []
-    for d in detections:
-        ratio = severity.area_ratio(d["bbox_w"], d["bbox_h"], img.width, img.height)
-        sev_score, sev_level = severity.severity(ratio, cfg)
-        row = {**d, "upload_id": upload_id, "road_id": road_id, "lat": lat, "lng": lng, "area_ratio": ratio,
-               "severity_score": sev_score, "severity_level": sev_level, "detection_count": 1, "recurrence_count": 0}
-        scored = priority.for_pothole({**row, **road}, cfg)
-        row.update({k: scored[k] for k in priority.SCORE_FIELDS})
-        saved.append({"pothole_id": potholes.insert(conn, **row), **row})
-
+    saved = save_detections(conn, upload_id, road, lat, lng, detections, img.width, img.height, cfg)
     storage.save(path, buf.getvalue(), "image/jpeg")  # after the inserts: if storing fails, they roll back
     return {"upload_id": upload_id, "lat": lat, "lng": lng, "gps_source": gps_source,
             "image_width": img.width, "image_height": img.height, "potholes": saved}
+
+
+# The detection's own evidence: replaces a matched pothole's evidence when this sighting is more severe
+EVIDENCE = ("upload_id", "bbox_x", "bbox_y", "bbox_w", "bbox_h", "confidence", "area_ratio", "severity_score",
+            "severity_level", "frame_index", "frame_time_s", "frame_storage_path")
+BOX = ("bbox_x", "bbox_y", "bbox_w", "bbox_h", "confidence", "frame_index")
+
+
+def save_detections(conn: Connection, upload_id: int, road: dict, lat: float, lng: float, detections: list[dict],
+                    width: int, height: int, cfg: dict[str, float]) -> list[dict]:
+    """Severity, repeat matching (TRD 4.4) and priority for each detection; insert or update potholes.
+
+    Each returned row is the stored pothole plus THIS upload's box (to draw on this image) and "match".
+    """
+    for d in detections:
+        d["area_ratio"] = severity.area_ratio(d["bbox_w"], d["bbox_h"], width, height)
+        d["severity_score"], d["severity_level"] = severity.severity(d["area_ratio"], cfg)
+        d["upload_id"] = upload_id
+        for f in ("frame_index", "frame_time_s", "frame_storage_path"):
+            d.setdefault(f, None)
+
+    saved = []
+    now = datetime.now(timezone.utc)
+    for d, existing, kind in matching.match(conn, detections, lat, lng, cfg["DEDUP_RADIUS_M"]):
+        if kind == "repeat":
+            row = {**existing, "detection_count": existing["detection_count"] + 1, "last_detected_at": now}
+            row.pop("image_path")  # internal Storage path, not for the response
+            if d["severity_score"] > existing["severity_score"]:
+                row.update({k: d[k] for k in EVIDENCE})
+            changed = ("detection_count", "last_detected_at", *EVIDENCE)
+        else:
+            row = {**{k: d[k] for k in EVIDENCE}, "road_id": road["road_id"], "lat": lat, "lng": lng,
+                   "detection_count": 1, "recurrence_count": existing["recurrence_count"] + 1 if existing else 0}
+            changed = tuple(row)
+        scored = priority.for_pothole({**row, **{k: road[k] for k in ("traffic_score", "importance_score")}}, cfg)
+        row.update({k: scored[k] for k in priority.SCORE_FIELDS})
+        fields = {k: row[k] for k in (*changed, *priority.SCORE_FIELDS)}
+        if kind == "repeat":
+            potholes.update(conn, existing["pothole_id"], **fields)
+            pothole_id = existing["pothole_id"]
+        else:
+            pothole_id = potholes.insert(conn, **fields)
+        saved.append({**row, "pothole_id": pothole_id, **{k: d[k] for k in BOX}, "match": kind})
+    return saved

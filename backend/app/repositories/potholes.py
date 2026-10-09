@@ -1,4 +1,6 @@
-"""SQL for the potholes table."""
+"""SQL for the potholes table. Column names in insert/update come from our code, never from requests."""
+from math import cos, radians
+
 from sqlalchemy import Connection, text
 
 # Pothole plus what the map and detail panel need from its road and upload.
@@ -35,6 +37,15 @@ def get(conn: Connection, pothole_id: int, for_update: bool = False) -> dict | N
     sql = _SELECT + " WHERE p.pothole_id = :id" + (" FOR UPDATE OF p" if for_update else "")
     row = conn.execute(text(sql), {"id": pothole_id}).mappings().first()
     return dict(row) if row else None
+
+
+def near(conn: Connection, lat: float, lng: float, radius_m: float) -> list[dict]:
+    """Potholes inside a lat/lng box around the point (callers refine with haversine)."""
+    dlat = radius_m / 111_320
+    dlng = dlat / max(cos(radians(lat)), 0.01)
+    sql = _SELECT + " WHERE p.lat BETWEEN :lat0 AND :lat1 AND p.lng BETWEEN :lng0 AND :lng1 FOR UPDATE OF p"
+    rows = conn.execute(text(sql), {"lat0": lat - dlat, "lat1": lat + dlat, "lng0": lng - dlng, "lng1": lng + dlng})
+    return [dict(r) for r in rows.mappings()]
 
 
 def update(conn: Connection, pothole_id: int, **fields) -> None:
