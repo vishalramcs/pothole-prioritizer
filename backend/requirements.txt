@@ -1,0 +1,18 @@
+# Core (installed and tested together)
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+SQLAlchemy==2.1.4
+psycopg[binary]==3.3.6
+pydantic-settings==2.15.0
+pillow==12.3.0
+supabase==2.32.0
+
+# Dev / test
+pytest==9.1.1
+httpx==0.28.1
+
+# ML and clustering: NOT installed or tested in the skeleton. Add and pin when you start 2.2 / 4.3.
+# ultralytics
+# scikit-learn
+# numpy

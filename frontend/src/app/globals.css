@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+/* Design tokens from docs/04-design-brief.md (section 5). Contrast ratios are listed there.
+   --moderate (orange) is a FILL colour only; use --moderate-text for text. */
+:root {
+  --background: #f7f8fa;
+  --surface: #ffffff;
+  --foreground: #1b1f24;
+  --muted: #5b6570;
+  --brand: #1f3864;
+  --critical: #c62828;
+  --moderate: #ef8f00;
+  --moderate-text: #9a4a00;
+  --low: #2e7d32;
+  --repaired: #6b7785;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-critical: var(--critical);
+  --color-moderate: var(--moderate);
+  --color-moderate-text: var(--moderate-text);
+  --color-low: var(--low);
+  --color-repaired: var(--repaired);
+  /* System fonts: no network needed at build time (venue Wi-Fi can fail). */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}

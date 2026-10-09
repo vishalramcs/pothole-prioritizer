@@ -1,0 +1,28 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# model weights and uploads (large / private)
+backend/ml/weights/*
+!backend/ml/weights/.gitkeep
+backend/uploads/
+
+# node / next (frontend/.gitignore also covers these)
+node_modules/
+.next/
+
+# supabase CLI local state
+supabase/.temp/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
