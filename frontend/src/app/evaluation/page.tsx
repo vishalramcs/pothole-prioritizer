@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Gauge } from "lucide-react";
+import BarWithTable from "@/components/charts/BarWithTable";
 import Button from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
 import { fieldClass, labelClass } from "@/components/ui/styles";
 import { apiFetch } from "@/lib/api";
+import { COLORS } from "@/lib/colors";
 
 interface StrategyResult {
   strategy: string;
@@ -135,9 +137,19 @@ export default function EvaluationPage() {
             </ul>
           </div>
 
-          <div className="overflow-x-auto rounded-lg bg-surface p-6">
+          <div className="grid gap-4 lg:grid-cols-2">
+            {([["Crew travel by strategy (km, lower is better)", "Crew travel (km)", "travel_km"],
+               ["Road-user exposure by strategy (lower is better)", "Exposure", "exposure"]] as const).map(([title, valueLabel, key]) => (
+              <BarWithTable key={key} title={title} valueLabel={valueLabel} horizontal
+                labels={ev.strategies.map((s) => label(s.strategy))} values={ev.strategies.map((s) => s[key])}
+                colors={ev.strategies.map((s) => (s.strategy.startsWith("SRPPS") ? COLORS.primary : COLORS.repaired))} />
+            ))}
+          </div>
+
+          <details className="rounded-lg bg-surface p-6">
+            <summary className="cursor-pointer text-xl font-bold">Show details: how sensitive is the ranking to the weights?</summary>
+            <div className="mt-3 overflow-x-auto">
             <table className="w-full max-w-2xl text-left text-sm">
-              <caption className="mb-3 text-left text-xl font-bold">How sensitive is the ranking to the weights?</caption>
               <thead className={labelClass}>
                 <tr><th className="py-2">Weight</th><th>Change</th><th>Same top {ev.top_n}</th><th>Rank correlation (Spearman)</th></tr>
               </thead>
@@ -153,7 +165,8 @@ export default function EvaluationPage() {
               One weight changed by ±20%, then all weights rescaled to sum to 1. High overlap and correlation mean the
               ranking does not hinge on the exact (assumed) weights.
             </p>
-          </div>
+            </div>
+          </details>
         </>
       )}
     </div>

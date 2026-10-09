@@ -7,7 +7,7 @@ import { RefreshCw, Route } from "lucide-react";
 import CrewsPanel from "@/components/plan/CrewsPanel";
 import Button, { buttonClass } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
-import { fieldClass, labelClass } from "@/components/ui/styles";
+import { fieldClass, focusRing, labelClass } from "@/components/ui/styles";
 import { BandChip } from "@/components/ui/chips";
 import { apiFetch, json } from "@/lib/api";
 import type { Crew, PlannedStop, PlanResult, Pothole, Zone } from "@/lib/types";
@@ -22,6 +22,7 @@ export default function ZonesPlanPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
+  const [highlight, setHighlight] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -55,7 +56,7 @@ export default function ZonesPlanPage() {
       subtitle="Each day the most urgent potholes are repaired; nearby ones are grouped into zones so crews drive less." />
     <div className="flex flex-col gap-4 lg:h-[75vh] lg:flex-row">
       <section aria-label="Zones map" className="h-[50vh] flex-1 lg:h-auto">
-        <PotholeMap potholes={potholes} zones={zones} selectedId={null} />
+        <PotholeMap potholes={potholes} zones={zones} selectedId={null} highlightZone={highlight} />
       </section>
 
       <div className="flex flex-col gap-6 overflow-y-auto rounded-lg bg-surface p-6 lg:w-[28rem]">
@@ -70,7 +71,7 @@ export default function ZonesPlanPage() {
             </Button>
           </div>
           <p className="text-sm text-muted">
-            {lastRecompute ? `Last recomputed ${lastRecompute.toLocaleString()}` : "Not computed yet."} Open potholes
+            {lastRecompute ? `Last recomputed ${lastRecompute.toLocaleString()}.` : "Not computed yet."}<br />Open potholes
             close to each other (ZONE_EPS_M in config, straight-line distance) share a zone.
           </p>
           {zones.length > 0 && (
@@ -78,16 +79,21 @@ export default function ZonesPlanPage() {
               <thead className={labelClass}><tr><th className="py-1">Zone</th><th>Potholes</th><th>Avg priority</th></tr></thead>
               <tbody>
                 {zones.map((z) => (
-                  <tr key={z.zone_id} className="border-t border-background">
-                    <td className="py-1">Zone {z.zone_id}</td><td>{z.pothole_count}</td><td>{z.avg_priority.toFixed(2)}</td>
+                  <tr key={z.zone_id}
+                    className={`cursor-pointer border-t border-background hover:bg-background ${highlight === z.zone_id ? "bg-primary/10 font-bold" : ""}`}
+                    onClick={() => setHighlight(highlight === z.zone_id ? null : z.zone_id)}>
+                    <td className="py-1">
+                      <button type="button" className={`font-[inherit] ${focusRing}`} aria-pressed={highlight === z.zone_id}
+                        onClick={(e) => { e.stopPropagation(); setHighlight(highlight === z.zone_id ? null : z.zone_id); }}>
+                        Zone {z.zone_id}
+                      </button>
+                    </td><td>{z.pothole_count}</td><td>{z.avg_priority.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
         </section>
-
-        <CrewsPanel crews={crews} onChanged={() => setVersion((v) => v + 1)} />
 
         <section aria-label="Repair plan" className="flex flex-col gap-2">
           <h2 className="text-xl font-bold">Repair plan</h2>
@@ -137,6 +143,8 @@ export default function ZonesPlanPage() {
             </>
           )}
         </section>
+
+        <CrewsPanel crews={crews} onChanged={() => setVersion((v) => v + 1)} />
       </div>
     </div>
     </div>

@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Camera, ScanSearch, UploadCloud } from "lucide-react";
+import { Camera, LocateFixed, ScanSearch, UploadCloud } from "lucide-react";
 import { LocationPicker } from "@/components/map";
 import Button, { buttonClass } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
-import { fieldClass, labelClass } from "@/components/ui/styles";
+import { fieldClass, focusRing, labelClass } from "@/components/ui/styles";
 import { BoxedImage } from "@/components/panels/PotholeDetail";
 import { BandChip, SeverityChip, THRESHOLD_NOTE } from "@/components/ui/chips";
 import { apiFetch, BASE_URL } from "@/lib/api";
@@ -37,6 +37,20 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [manual, setManual] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
+
+  function locateMe() {
+    setLocating(true);
+    setLocError(null);
+    navigator.geolocation.getCurrentPosition(
+      // the API knows only "manual" and "map_click"; a device fix is sent as manual (no API change)
+      (pos) => { setLat(pos.coords.latitude.toFixed(6)); setLng(pos.coords.longitude.toFixed(6)); setGpsSource("manual"); setLocating(false); },
+      (err) => { setLocError(`Could not get your location: ${err.message}`); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  }
 
   useEffect(() => {
     apiFetch<Road[]>("/roads").then(setRoads).catch((e) => setError(e.message));
@@ -121,7 +135,18 @@ export default function UploadPage() {
           <p className="text-sm text-muted">
             {isVideo ? "Type the clip's location or click the map." : "Leave blank to use the GPS stored in the photo, or type it, or click the map."}
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" size="sm" disabled={locating} onClick={locateMe}>
+              <LocateFixed aria-hidden size={16} strokeWidth={2.5} /> {locating ? "Locating…" : "Use my location"}
+            </Button>
+            <button type="button" aria-expanded={manual || !!coordError} aria-controls="manual-coords" onClick={() => setManual(!manual)}
+              className={`text-sm font-semibold text-primary underline decoration-2 underline-offset-4 ${focusRing}`}>
+              {manual ? "Hide manual entry" : "Edit manually"}
+            </button>
+            {lat !== "" && lng !== "" && !coordError && <span className="text-sm text-muted">Set to {lat}, {lng}</span>}
+          </div>
+          {locError && <p role="alert" className="text-sm font-semibold text-critical">{locError}</p>}
+          <div id="manual-coords" hidden={!manual && !coordError} className="grid grid-cols-2 gap-2">
             <label className={fieldLabel}>Latitude
               <input inputMode="decimal" className={field} value={lat} aria-invalid={!!coordError}
                 onChange={(e) => { setLat(e.target.value); setGpsSource("manual"); }} />

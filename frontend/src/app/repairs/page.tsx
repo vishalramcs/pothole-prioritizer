@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Wrench } from "lucide-react";
 import StatusButtons from "@/components/repairs/StatusButtons";
@@ -58,7 +59,12 @@ export default function RepairsPage() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.pothole_id} className="border-t border-background align-middle">
-                  <td className="py-2">#{r.pothole_id}{r.sequence_no ? ` (stop ${r.sequence_no})` : ""}</td>
+                  <td className="py-2">
+                    #{r.pothole_id}{r.sequence_no ? ` (stop ${r.sequence_no})` : ""}
+                    <Link href={`/?pothole=${r.pothole_id}`} className={`block text-sm font-semibold text-primary underline decoration-2 underline-offset-4 ${focusRing}`}>
+                      View on map
+                    </Link>
+                  </td>
                   <td>{r.road_name ?? "unknown"}</td>
                   <td><BandChip band={r.priority_band} /> {r.priority_score.toFixed(2)}</td>
                   <td>{r.zone_id ?? "–"}</td>

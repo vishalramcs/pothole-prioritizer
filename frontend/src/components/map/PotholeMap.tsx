@@ -100,11 +100,21 @@ function ClickAway({ onClick }: { onClick: () => void }) {
   return null;
 }
 
-export default function PotholeMap({ potholes, selectedId, onSelect, zones = [] }: {
+/** Bring the highlighted zone into view. */
+function FlyToZone({ zone }: { zone: Zone | undefined }) {
+  const map = useMap();
+  useEffect(() => {
+    if (zone) map.flyTo([zone.centroid_lat, zone.centroid_lng], Math.max(map.getZoom(), 16));
+  }, [map, zone]);
+  return null;
+}
+
+export default function PotholeMap({ potholes, selectedId, onSelect, zones = [], highlightZone = null }: {
   potholes: Pothole[];
   selectedId: number | null;
   onSelect?: (id: number | null) => void; // without it, popups have no "Why?" link (zones page)
   zones?: Zone[];
+  highlightZone?: number | null;
 }) {
   const positions = spread(potholes);
   return (
@@ -116,12 +126,15 @@ export default function PotholeMap({ potholes, selectedId, onSelect, zones = [] 
       <FitOnce points={[...positions.values()]} />
       <KeepInView target={selectedId === null ? null : positions.get(selectedId) ?? null} />
       {onSelect && <ClickAway onClick={() => onSelect(null)} />}
+      <FlyToZone zone={zones.find((z) => z.zone_id === highlightZone)} />
       {zones.map((z) => (
         <Circle
           key={z.zone_id}
           center={[z.centroid_lat, z.centroid_lng]}
           radius={Math.max(40, z.radius_m + 25)}
-          pathOptions={{ color: COLORS.primary, weight: 2, fillOpacity: 0.1 }}
+          pathOptions={z.zone_id === highlightZone
+            ? { color: COLORS.ink, weight: 4, fillOpacity: 0.25 }
+            : { color: COLORS.primary, weight: 2, fillOpacity: 0.1 }}
         >
           <Tooltip>{`Zone ${z.zone_id}: ${z.pothole_count} potholes, avg priority ${z.avg_priority.toFixed(2)}`}</Tooltip>
         </Circle>

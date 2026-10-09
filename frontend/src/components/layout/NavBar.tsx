@@ -11,7 +11,13 @@ export default function NavBar() {
       <nav aria-label="Main" className="mx-auto flex max-w-7xl items-center gap-6 overflow-x-auto px-4 py-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 rounded-md text-xl font-extrabold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-bright">
           <span aria-hidden className="h-5 w-5 rounded-sm bg-primary-bright" />
-          SRPPS
+          {/* two short lines that fit the nav links' height, so page heights below it don't change */}
+          <span className="flex flex-col leading-none">
+            SRPPS
+            <span className="mt-0.5 text-[10px] font-semibold leading-tight tracking-normal text-white/80">
+              Smart Road Pothole Prioritization System
+            </span>
+          </span>
         </Link>
         <ul className="flex gap-1">
           {NAV_LINKS.map(({ href, label, icon: Icon }) => {

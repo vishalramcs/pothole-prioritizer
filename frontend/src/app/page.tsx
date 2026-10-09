@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { PotholeMap } from "@/components/map";
 import PotholeDetail from "@/components/panels/PotholeDetail";
 import { BandChip } from "@/components/ui/chips";
-import { fieldClass } from "@/components/ui/styles";
+import { fieldClass, focusRing } from "@/components/ui/styles";
 import { apiFetch } from "@/lib/api";
 import { BANDS, STATUSES, type Pothole } from "@/lib/types";
 
@@ -25,7 +25,15 @@ export default function MapDashboardPage() {
   useEffect(() => {
     let alive = true;
     apiFetch<Pothole[]>("/potholes")
-      .then((d) => alive && (setAll(d), setError(null)))
+      .then((d) => {
+        if (!alive) return;
+        setAll(d);
+        setError(null);
+        if (version === 0) { // "View on map" links from Repairs open that pothole's panel: /?pothole=12
+          const id = Number(new URLSearchParams(window.location.search).get("pothole"));
+          if (id) setSelected(id);
+        }
+      })
       .catch((e) => alive && setError(e.message));
     return () => { alive = false; };
   }, [version]);
@@ -39,6 +47,8 @@ export default function MapDashboardPage() {
   const select = `${fieldClass} mt-1 w-full`;
   const label = "text-xs font-semibold uppercase tracking-wider text-white/80";
   const count = (b: string) => shown.filter((p) => p.priority_band === b).length;
+  const open = (all ?? []).filter((p) => p.status !== "Repaired");
+  const fixFirst = [...open].sort((a, b) => b.priority_score - a.priority_score).slice(0, 3);
   return (
     <div className="flex flex-col gap-4 lg:h-[calc(100vh-7.5rem)] lg:flex-row">
       <aside aria-label="Filters" className="relative flex shrink-0 flex-col gap-4 overflow-x-hidden overflow-y-auto rounded-lg bg-foreground p-5 text-white lg:w-64">
@@ -74,10 +84,35 @@ export default function MapDashboardPage() {
         <div className="text-sm">
           <p className={label}>Legend</p>
           <ul className="mt-2 flex flex-wrap gap-2">
-            {BANDS.map((b) => <li key={b}><BandChip band={b} /></li>)}
+            {BANDS.map((b) => (
+              <li key={b}>
+                <button type="button" aria-pressed={bandFilter === b} title={`Show only ${b}`}
+                  onClick={() => setBandFilter(bandFilter === b ? "" : b)}
+                  className={`rounded-md ${focusRing} ${bandFilter && bandFilter !== b ? "opacity-40" : ""}`}>
+                  <BandChip band={b} />
+                </button>
+              </li>
+            ))}
           </ul>
-          <p className="mt-2 text-white/80">Bigger marker = higher score · hollow = repaired</p>
+          <p className="mt-2 text-white/80">Click a band to filter · bigger marker = higher score · hollow = repaired</p>
         </div>
+        {fixFirst.length > 0 && (
+          <div className="text-sm">
+            <p className={label}>Fix first</p>
+            <p className="mt-1 text-white/80">{open.length} open · {open.filter((p) => p.priority_band === "Critical").length} Critical</p>
+            <ol className="mt-2 flex flex-col gap-1">
+              {fixFirst.map((p, i) => (
+                <li key={p.pothole_id}>
+                  <button type="button" onClick={() => setSelected(p.pothole_id)}
+                    className={`w-full rounded-md bg-white/10 px-2 py-1.5 text-left hover:bg-white/20 ${focusRing}`}>
+                    <span className="font-bold">{i + 1}. #{p.pothole_id}</span> {p.priority_score.toFixed(2)}
+                    <span className="block truncate text-white/80">{p.road_name ?? "unknown road"}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
         <p className="mt-auto text-sm text-white/80">
           {shown.length} of {all?.length ?? 0} potholes shown
           {shown.some((p) => p.is_demo) && <> · includes {shown.filter((p) => p.is_demo).length} <b className="text-white">demo data</b> potholes</>}
