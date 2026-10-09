@@ -26,3 +26,11 @@ supabase/.temp/
 .DS_Store
 .idea/
 .vscode/
+
+# ML pipeline data and outputs (large; rebuilt by the pipeline scripts)
+ml_pipeline/raw/
+ml_pipeline/pothole_images/
+ml_pipeline/pothole_labels/
+ml_pipeline/data_real/
+ml_pipeline/models/
+ml_pipeline/outputs/
