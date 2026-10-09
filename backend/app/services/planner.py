@@ -33,20 +33,9 @@ def greedy_order(stops: list[dict]) -> list[dict]:
     return route
 
 
-def plan(conn: Connection, days: int, start_date: date | None = None) -> dict:
-    """Runs in the request's single transaction: reset, recompute zones, schedule. Any error rolls it all back."""
-    start_date = start_date or date.today()
-    crews = crews_repo.list_all(conn)
-    if not crews:
-        raise PlanError("Add at least one crew first")
-
-    status.unschedule_all(conn)  # 1. reset the earlier plan (In Progress is left alone)
-    zones.recompute(conn)  # 2. fresh zones
-    pending = [p for p in potholes.open_rows(conn) if p["status"] == "Pending"]
-    if not pending:
-        return {"message": "No pending potholes to schedule", "scheduled": [], "unscheduled_count": 0,
-                "unscheduled_ids": []}
-
+def build_plan(pending: list[dict], crews: list[dict], days: int, start_date: date) -> tuple[list[dict], list[int]]:
+    """Steps 3-5 without touching the database (the evaluation simulates with it too).
+    pending: potholes carrying zone_id. Returns (scheduled stops, unscheduled pothole ids)."""
     by_zone: dict[int, list[dict]] = {}
     for p in pending:
         by_zone.setdefault(p["zone_id"], []).append(p)
@@ -67,12 +56,31 @@ def plan(conn: Connection, days: int, start_date: date | None = None) -> dict:
             left[crew_id] -= 1
             seq[crew_id] += 1
             planned = start_date + timedelta(days=(seq[crew_id] - 1) // by_id[crew_id]["capacity_per_day"])
-            status.schedule(conn, p["pothole_id"], crew_id, seq[crew_id], planned)  # 5-6.
             scheduled.append({
                 "pothole_id": p["pothole_id"], "crew_id": crew_id, "crew_name": by_id[crew_id]["name"],
                 "sequence_no": seq[crew_id], "planned_date": planned.isoformat(), "zone_id": p["zone_id"],
                 "road_name": p["road_name"], "priority_score": p["priority_score"], "priority_band": p["priority_band"],
             })
+    return scheduled, unscheduled
+
+
+def plan(conn: Connection, days: int, start_date: date | None = None) -> dict:
+    """Runs in the request's single transaction: reset, recompute zones, schedule. Any error rolls it all back."""
+    start_date = start_date or date.today()
+    crews = crews_repo.list_all(conn)
+    if not crews:
+        raise PlanError("Add at least one crew first")
+
+    status.unschedule_all(conn)  # 1. reset the earlier plan (In Progress is left alone)
+    zones.recompute(conn)  # 2. fresh zones
+    pending = [p for p in potholes.open_rows(conn) if p["status"] == "Pending"]
+    if not pending:
+        return {"message": "No pending potholes to schedule", "scheduled": [], "unscheduled_count": 0,
+                "unscheduled_ids": []}
+
+    scheduled, unscheduled = build_plan(pending, crews, days, start_date)
+    for s in scheduled:  # 5-6.
+        status.schedule(conn, s["pothole_id"], s["crew_id"], s["sequence_no"], date.fromisoformat(s["planned_date"]))
     return {
         "message": f"Scheduled {len(scheduled)} pothole(s)" + (f"; {len(unscheduled)} did not fit" if unscheduled else ""),
         "scheduled": scheduled, "unscheduled_count": len(unscheduled), "unscheduled_ids": unscheduled,

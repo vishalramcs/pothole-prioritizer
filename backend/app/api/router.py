@@ -2,9 +2,9 @@
 from fastapi import APIRouter
 
 from app.api.routers import (
-    analytics, config, crews, health, plan, potholes, repairs, roads, uploads, zones,
+    analytics, config, crews, evaluation, health, plan, potholes, repairs, roads, uploads, zones,
 )
 
 api_router = APIRouter(prefix="/api")
-for module in (health, uploads, potholes, roads, crews, zones, plan, repairs, analytics, config):
+for module in (health, uploads, potholes, roads, crews, zones, plan, repairs, analytics, config, evaluation):
     api_router.include_router(module.router)
