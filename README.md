@@ -119,6 +119,8 @@ Database tests run inside a transaction that is rolled back, so they leave no da
 Prepared answers: "Why is the High pothole on Demo Lane only Moderate?" Priority is about impact, not only damage: with the seeded traffic of 0.20 a local road can reach at most 0.585, or 0.735 right next to a hospital (TRD 4.5). "Why is everything in the demo High severity?" All sample photos are close-ups, so each pothole fills much of the frame; road-level photos give Medium and Low.
 
 ## Results: does the prioritization work?
+
+*These numbers were measured with the earlier demo roads, before roads came from OpenStreetMap; the Evaluation page recomputes them on the current data.*
 Measured with the Evaluation page (`GET /api/evaluation`), seeded crews (2 crews x 5 repairs per day), Critical counted as fixed if repaired on day 1. Exposure = sum of traffic x severity x days the pothole stays open (lower is better).
 
 Location factor computed from 2,063 OpenStreetMap facilities (746 schools, 682 hospitals, 625 clinics, 10 fire stations) imported for central Bengaluru; the demo potholes are a median 380 m from the nearest one.
@@ -170,7 +172,7 @@ Claude (Anthropic) was used for planning and drafting the documents in `docs/` a
 ## Limitations
 - Severity is a relative 2D estimate (share of the image the box covers), not depth; camera distance and angle change it.
 - Road importance comes from the OpenStreetMap road class at the pothole's location; **traffic is an estimate** from that class and the lane count, because no free source of real traffic counts exists for these roads. Both are labelled in the detail panel.
-- Uploads without a picked road need OpenStreetMap's Overpass API; when it is down (it often answers 504), pick the road from the list instead. A pothole is matched to a road only within 60 m; when several are close, the more important road wins (a driveway next to a main road is not chosen).
+- Uploads without a picked road need OpenStreetMap's Overpass API the first time an area is used; roads are then cached per ~1 km tile in `backend/.osm_cache/`, so later uploads nearby work offline. When Overpass is down (it often answers 504) and the area is not cached, pick the road from the list instead. A pothole is matched to a road only within 60 m; when several are close, the more important road wins (a driveway next to a main road is not chosen).
 - The location factor depends on OpenStreetMap's coverage of important buildings. The public Overpass servers are sometimes down (we hit HTTP 504/500 before a later attempt worked); the script then changes nothing and can simply be re-run.
 - The evaluation is a simulation on the stored potholes, not a field trial; its exposure metric uses traffic and severity, which the priority also uses.
 - All potholes in one photo or video clip share its single GPS point (phone GPS is roughly 5 to 10 m off).

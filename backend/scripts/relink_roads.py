@@ -2,7 +2,7 @@
 delete the mock roads and rescore everything. Safe to re-run.
 
 Run from backend/:  python scripts/relink_roads.py
-One Overpass query per ~5 km tile that has potholes. Uploads with no mapped road within osm_roads.SEARCH_M keep
+One Overpass query per ~1 km tile that has potholes. Uploads with no mapped road within osm_roads.SEARCH_M keep
 no road (road_id NULL; scored like the quietest road) and are listed, so they can be fixed by hand.
 """
 import sys
@@ -16,22 +16,21 @@ from sqlalchemy import text  # noqa: E402
 from app.core.db import get_engine  # noqa: E402
 from app.services import osm_roads, priority  # noqa: E402
 
-TILE = 0.05  # degrees, ~5 km
-
-
 def main() -> None:
-    with get_engine().begin() as conn:  # all or nothing
+    with get_engine().connect() as conn:
         ups = conn.execute(text("SELECT upload_id, lat, lng FROM uploads")).mappings().all()
-        tiles = defaultdict(list)
-        for u in ups:
-            tiles[(int(u["lat"] // TILE), int(u["lng"] // TILE))].append(u)
-        pad = osm_roads.SEARCH_M / 111_000 * 2
+    tiles = defaultdict(list)
+    for u in ups:
+        tiles[(int(u["lat"] // osm_roads.TILE), int(u["lng"] // osm_roads.TILE))].append(u)
+    ways = {}
+    for key, members in tiles.items():  # 1. download every tile first (cached), so a failure loses nothing
+        ways[key] = osm_roads.tile_ways(*key, attempts=4, wait_s=20)  # cached in backend/.osm_cache
+        print(f"tile {key[0] * osm_roads.TILE:.2f},{key[1] * osm_roads.TILE:.2f}: {len(ways[key])} roads, {len(members)} uploads")
+    with get_engine().begin() as conn:  # 2. then update the database in one transaction
         unmatched = []
-        for (ti, tj), members in tiles.items():
-            ways = osm_roads.fetch_ways(ti * TILE - pad, tj * TILE - pad, (ti + 1) * TILE + pad, (tj + 1) * TILE + pad)
-            print(f"tile {ti * TILE:.2f},{tj * TILE:.2f}: {len(ways)} roads, {len(members)} uploads")
+        for key, members in tiles.items():
             for u in members:
-                way = osm_roads.nearest_way(ways, u["lat"], u["lng"])
+                way = osm_roads.nearest_way(ways[key], u["lat"], u["lng"])
                 road_id = osm_roads.road_for_way(conn, way)["road_id"] if way else None
                 if road_id is None:
                     unmatched.append(u["upload_id"])

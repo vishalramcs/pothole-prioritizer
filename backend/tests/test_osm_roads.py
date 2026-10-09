@@ -37,7 +37,9 @@ def test_main_road_beats_a_slightly_closer_driveway():
 
 
 @pytest.fixture
-def one_box(monkeypatch):
+def one_box(monkeypatch, tmp_path):
+    monkeypatch.setattr(osm_roads, "CACHE", tmp_path)  # never read or write the real tile cache in tests
+    monkeypatch.setattr(osm_roads.time, "sleep", lambda s: None)
     monkeypatch.setattr(detector, "detect", lambda img, c: [{"bbox_x": 0, "bbox_y": 0, "bbox_w": 100, "bbox_h": 100,
                                                              "confidence": 0.9}])
 
@@ -80,3 +82,14 @@ def test_important_buildings_include_transport_police_colleges():
         {"type": "node", "id": 5, "lat": 1, "lon": 1, "tags": {"railway": "halt"}},  # not a station
     ]}
     assert [r["kind"] for r in facilities.parse_overpass(data)] == ["railway_station", "police", "university", "bus_station"]
+
+
+def test_tile_cache_makes_repeat_lookups_offline(client, monkeypatch, one_box):
+    monkeypatch.setattr(osm_roads, "fetch_ways", lambda *box: [way(5, "primary", 5, name="Cached Road")])
+    assert upload_without_road(client).status_code == 200
+
+    def down(*box):
+        raise osm_roads.RoadLookupError("OpenStreetMap could not be reached")
+    monkeypatch.setattr(osm_roads, "fetch_ways", down)
+    r = upload_without_road(client)  # same tile: answered from the cache
+    assert r.status_code == 200 and r.json()["potholes"][0]["road_id"] is not None

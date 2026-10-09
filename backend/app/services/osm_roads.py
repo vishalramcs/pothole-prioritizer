@@ -5,9 +5,11 @@ of real traffic counts for these roads, so the app labels it "estimated from roa
 Needs the Overpass API (internet); if it is unreachable, uploads fall back to a road picked from the list.
 """
 import json
+import time
 import urllib.parse
 import urllib.request
 from math import cos, hypot, radians
+from pathlib import Path
 
 from sqlalchemy import Connection
 
@@ -15,6 +17,8 @@ from app.repositories import roads
 
 OVERPASS = ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter")
 SEARCH_M = 60  # a photo's GPS is often 5 to 10 m off; a road farther than this is probably not the one
+TILE = 0.01  # degrees (~1 km): roads are fetched and cached per tile, so repeat uploads nearby need no internet
+CACHE = Path(__file__).resolve().parents[2] / ".osm_cache"  # git-ignored
 
 # OSM highway tag -> (app road type, importance, base traffic estimate)
 # shortcut: traffic per class is our estimate (busier classes carry more vehicles); replace with counts if a city publishes them
@@ -99,11 +103,29 @@ def road_for_way(conn: Connection, way: dict) -> dict:
                                         data_source="osm_estimate", **values))
 
 
+def tile_ways(ti: int, tj: int, attempts: int = 2, wait_s: float = 3) -> list[dict]:
+    """Roads in one tile (padded so points near its edge still find their road), from the cache or Overpass.
+    Overpass often fails for a moment (504, rate limits), so it is retried before giving up."""
+    f = CACHE / f"roads_{ti}_{tj}.json"
+    if f.exists():
+        return json.loads(f.read_text())
+    pad = SEARCH_M / 111_000 * 2
+    for attempt in range(attempts):
+        try:
+            ways = fetch_ways(ti * TILE - pad, tj * TILE - pad, (ti + 1) * TILE + pad, (tj + 1) * TILE + pad)
+            break
+        except RoadLookupError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(wait_s * (attempt + 1))
+    CACHE.mkdir(exist_ok=True)
+    f.write_text(json.dumps(ways))
+    return ways
+
+
 def road_at(conn: Connection, lat: float, lng: float) -> dict:
     """The real road at a point; RoadLookupError if OSM is unreachable or no road is within SEARCH_M."""
-    pad = SEARCH_M / 111_000
-    way = nearest_way(fetch_ways(lat - pad, lng - pad / max(cos(radians(lat)), 0.01), lat + pad,
-                                 lng + pad / max(cos(radians(lat)), 0.01)), lat, lng)
+    way = nearest_way(tile_ways(int(lat // TILE), int(lng // TILE)), lat, lng)
     if way is None:
         raise RoadLookupError(f"No mapped road within {SEARCH_M} m of this location")
     return road_for_way(conn, way)

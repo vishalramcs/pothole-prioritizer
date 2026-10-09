@@ -38,3 +38,4 @@ ml_pipeline/pothole_images_mumbai/
 ml_pipeline/pothole_labels_mumbai/
 ml_pipeline/data_real_mumbai/
 ml_pipeline/locations_mumbai.csv
+backend/.osm_cache/
