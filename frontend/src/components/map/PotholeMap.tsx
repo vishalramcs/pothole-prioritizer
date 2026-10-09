@@ -8,6 +8,7 @@ import { createLayerComponent } from "@react-leaflet/core";
 import { useEffect, useRef } from "react";
 import { Circle, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import { BandChip } from "@/components/ui/chips";
+import { linkClass } from "@/components/ui/styles";
 import { BAND_COLOR, COLORS } from "@/lib/colors";
 import type { Pothole, Zone } from "@/lib/types";
 import LiveMap from "./LiveMap";
@@ -134,8 +135,8 @@ export default function PotholeMap({ potholes, selectedId, onSelect, zones = [],
           center={[z.centroid_lat, z.centroid_lng]}
           radius={Math.max(40, z.radius_m + 25)}
           pathOptions={z.zone_id === highlightZone
-            ? { color: COLORS.ink, weight: 4, fillOpacity: 0.25 }
-            : { color: COLORS.primary, weight: 2, fillOpacity: 0.1 }}
+            ? { color: COLORS.accent, weight: 4, fillOpacity: 0.2 }
+            : { color: COLORS.ink, weight: 2, fillOpacity: 0.08, dashArray: "6 4" }}
         >
           <Tooltip>{`Zone ${z.zone_id}: ${z.pothole_count} potholes, avg priority ${z.avg_priority.toFixed(2)}`}</Tooltip>
         </Circle>
@@ -159,7 +160,7 @@ export default function PotholeMap({ potholes, selectedId, onSelect, zones = [],
               </dl>
               {onSelect && (
                 <button type="button" onClick={() => onSelect(p.pothole_id)}
-                  className="mt-2 font-semibold text-primary underline decoration-2 underline-offset-4">
+                  className={`mt-2 ${linkClass}`}>
                   Why? See the score breakdown
                 </button>
               )}

@@ -15,7 +15,7 @@ const SEVERITY_CLASS: Record<SeverityLevel, string> = {
 
 export function BandChip({ band }: { band: Band }) {
   return (
-    <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${BAND_CLASS[band]}`}>
+    <span className={`inline-block rounded-sm px-2 py-0.5 font-mono text-xs font-bold uppercase tracking-[0.08em] shadow-sharp ${BAND_CLASS[band]}`}>
       {band === "Critical" ? "! " : ""}
       {band}
     </span>
@@ -23,13 +23,13 @@ export function BandChip({ band }: { band: Band }) {
 }
 
 export function SeverityChip({ level }: { level: SeverityLevel }) {
-  return <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${SEVERITY_CLASS[level]}`}>{level}</span>;
+  return <span className={`inline-block rounded-sm px-2 py-0.5 font-mono text-xs font-bold uppercase tracking-[0.08em] shadow-sharp ${SEVERITY_CLASS[level]}`}>{level}</span>;
 }
 
 /** Where a value comes from, shown next to it (e.g. "OSM road class", "estimated from road type"). */
 export function SourceBadge({ text, title }: { text: string; title: string }) {
   return (
-    <span className="ml-1 rounded-sm bg-background px-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted" title={title}>
+    <span className="ml-1 rounded-sm bg-recessed px-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.05em] text-muted shadow-[inset_1px_1px_2px_rgba(0,0,0,0.12)]" title={title}>
       {text}
     </span>
   );

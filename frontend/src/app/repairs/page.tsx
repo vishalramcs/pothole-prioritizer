@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Wrench } from "lucide-react";
 import StatusButtons from "@/components/repairs/StatusButtons";
 import PageHeader from "@/components/ui/PageHeader";
-import { focusRing, labelClass } from "@/components/ui/styles";
+import { cardClass, focusRing, labelClass, linkClass } from "@/components/ui/styles";
 import { BandChip } from "@/components/ui/chips";
 import { apiFetch } from "@/lib/api";
 import { STATUSES, type RepairRow, type Status } from "@/lib/types";
@@ -33,19 +33,19 @@ export default function RepairsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader icon={Wrench} tone="ink" title="Repairs"
+      <PageHeader icon={Wrench} title="Repairs"
         subtitle="Track every pothole from reported to repaired. Buttons only offer the changes the status rules allow." />
       <div role="tablist" aria-label="Repair status" className="flex flex-wrap gap-2">
         {STATUSES.map((s) => (
           <button key={s} role="tab" type="button" aria-selected={tab === s} onClick={() => { setTab(s); setRows(null); }}
-            className={`h-11 rounded-md px-5 font-semibold transition-colors duration-200 ${focusRing} ${tab === s ? "bg-primary text-white" : "bg-surface text-foreground hover:bg-border"}`}>
-            {s}{counts && ` (${counts[s] ?? 0})`}
+            className={`min-h-12 rounded-lg bg-background px-5 font-bold transition-all duration-150 ease-mechanical ${focusRing} ${tab === s ? "text-primary shadow-pressed" : "text-foreground shadow-card hover:text-primary active:translate-y-[2px]"}`}>
+            {s}{counts && <span className="font-mono">{` (${counts[s] ?? 0})`}</span>}
           </button>
         ))}
       </div>
 
-      <div role="tabpanel" className="overflow-x-auto rounded-lg bg-surface p-6">
-        {error && <p role="alert" className="text-critical">{error}</p>}
+      <div role="tabpanel" className={`overflow-x-auto ${cardClass}`}>
+        {error && <p role="alert" className="text-critical-text">{error}</p>}
         {!rows && !error && <p className="text-muted">Loading…</p>}
         {rows?.length === 0 && <p className="text-muted">No potholes are {tab.toLowerCase()}.</p>}
         {rows && rows.length > 0 && (
@@ -58,10 +58,10 @@ export default function RepairsPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.pothole_id} className="border-t border-background align-middle">
+                <tr key={r.pothole_id} className="border-t border-border align-middle">
                   <td className="py-2">
                     #{r.pothole_id}{r.sequence_no ? ` (stop ${r.sequence_no})` : ""}
-                    <Link href={`/?pothole=${r.pothole_id}`} className={`block text-sm font-semibold text-primary underline decoration-2 underline-offset-4 ${focusRing}`}>
+                    <Link href={`/?pothole=${r.pothole_id}`} className={`block text-sm ${linkClass}`}>
                       View on map
                     </Link>
                   </td>

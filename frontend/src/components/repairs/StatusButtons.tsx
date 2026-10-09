@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Button from "@/components/ui/Button";
-import { focusRing } from "@/components/ui/styles";
+import { linkClass } from "@/components/ui/styles";
 import { ApiError, apiFetch, json } from "@/lib/api";
 import type { Status } from "@/lib/types";
 
@@ -52,14 +52,14 @@ export default function StatusButtons({ potholeId, status, onChanged }: {
         <Button size="sm" disabled={busy} onClick={() => run(main.to)}>{main.label}</Button>
         {rest.map(({ label, to }) => (
           <button key={to} type="button" disabled={busy} onClick={() => run(to)}
-            className={`text-sm font-semibold text-primary underline decoration-2 underline-offset-4 disabled:opacity-50 ${focusRing}`}>
+            className={`text-sm disabled:opacity-50 ${linkClass}`}>
             {label}
           </button>
         ))}
       </div>
-      {error && <p role="alert" className="mt-1 text-xs text-critical">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-xs text-critical-text">{error}</p>}
       <dialog ref={confirmRef} aria-labelledby={`confirm-${potholeId}`}
-        className="m-auto rounded-lg bg-surface p-6 text-foreground backdrop:bg-foreground/50">
+        className="screws m-auto rounded-xl bg-background p-8 text-foreground shadow-sharp backdrop:bg-foreground/60">
         <h2 id={`confirm-${potholeId}`} className="text-xl font-bold">Mark pothole #{potholeId} as repaired?</h2>
         <p className="mt-1 text-sm text-muted">Repaired is final. If the pothole comes back, a new upload records it as a recurrence.</p>
         <form method="dialog" className="mt-4 flex justify-end gap-3">

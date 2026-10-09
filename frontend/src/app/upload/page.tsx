@@ -6,7 +6,7 @@ import { Camera, LocateFixed, ScanSearch, UploadCloud } from "lucide-react";
 import { LocationPicker } from "@/components/map";
 import Button, { buttonClass } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
-import { fieldClass, focusRing, labelClass } from "@/components/ui/styles";
+import { cardClass, fieldClass, labelClass, linkClass } from "@/components/ui/styles";
 import { BoxedImage } from "@/components/panels/PotholeDetail";
 import { BandChip, SeverityChip, THRESHOLD_NOTE } from "@/components/ui/chips";
 import { apiFetch, BASE_URL } from "@/lib/api";
@@ -102,13 +102,13 @@ export default function UploadPage() {
         subtitle="Upload a road photo or short video. The model finds the potholes and scores how urgently each needs repair." />
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <form onSubmit={submit} className="flex flex-col gap-5 rounded-lg bg-surface p-6" noValidate>
+      <form onSubmit={submit} className={`flex flex-col gap-5 ${cardClass}`} noValidate>
         <label className={fieldLabel}>Photo (JPG or PNG, up to {MAX_MB} MB) or short video (up to {MAX_VIDEO_MB} MB)
           <span
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => { e.preventDefault(); setDragging(false); pickFile(e.dataTransfer.files?.[0] ?? null); }}
-            className={`mt-1 flex cursor-pointer flex-col items-center gap-2 rounded-md border-2 border-dashed px-4 py-8 text-center normal-case tracking-normal transition-colors duration-200 has-[:focus-visible]:border-primary ${dragging ? "border-primary bg-surface" : "border-border bg-background hover:border-primary"}`}>
+            className={`mt-1 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed bg-background px-4 py-8 text-center font-sans normal-case tracking-normal shadow-recessed transition-all duration-200 has-[:focus-visible]:border-accent ${dragging ? "border-accent shadow-[var(--shadow-recessed),0_0_0_2px_var(--accent)]" : "border-border-dark hover:border-primary"}`}>
             <UploadCloud aria-hidden size={32} strokeWidth={2.5} className="text-primary" />
             <span className="text-base font-semibold text-foreground">
               {file ? file.name : "Drag a photo or video here, or click to browse"}
@@ -140,12 +140,12 @@ export default function UploadPage() {
               <LocateFixed aria-hidden size={16} strokeWidth={2.5} /> {locating ? "Locating…" : "Use my location"}
             </Button>
             <button type="button" aria-expanded={manual || !!coordError} aria-controls="manual-coords" onClick={() => setManual(!manual)}
-              className={`text-sm font-semibold text-primary underline decoration-2 underline-offset-4 ${focusRing}`}>
+              className={`text-sm ${linkClass}`}>
               {manual ? "Hide manual entry" : "Edit manually"}
             </button>
             {lat !== "" && lng !== "" && !coordError && <span className="text-sm text-muted">Set to {lat}, {lng}</span>}
           </div>
-          {locError && <p role="alert" className="text-sm font-semibold text-critical">{locError}</p>}
+          {locError && <p role="alert" className="text-sm font-semibold text-critical-text">{locError}</p>}
           <div id="manual-coords" hidden={!manual && !coordError} className="grid grid-cols-2 gap-2">
             <label className={fieldLabel}>Latitude
               <input inputMode="decimal" className={field} value={lat} aria-invalid={!!coordError}
@@ -156,7 +156,7 @@ export default function UploadPage() {
                 onChange={(e) => { setLng(e.target.value); setGpsSource("manual"); }} />
             </label>
           </div>
-          {coordError && <p role="alert" className="text-sm font-semibold text-critical">{coordError}</p>}
+          {coordError && <p role="alert" className="text-sm font-semibold text-critical-text">{coordError}</p>}
           <LocationPicker
             value={lat !== "" && lng !== "" && !coordError ? [latNum, lngNum] : null}
             onPick={(a, b) => { setLat(a.toFixed(6)); setLng(b.toFixed(6)); setGpsSource("map_click"); }}
@@ -180,11 +180,11 @@ export default function UploadPage() {
             {isVideo ? "Analyzing video… one frame per second, so this takes a while on a laptop." : "Analyzing image… this takes a few seconds on a laptop."}
           </p>
         )}
-        {error && <p role="alert" className="font-semibold text-critical">{error}</p>}
+        {error && <p role="alert" className="font-semibold text-critical-text">{error}</p>}
       </form>
 
       {result && (
-        <section aria-label="Detection results" className="flex flex-col gap-4 rounded-lg bg-surface p-6">
+        <section aria-label="Detection results" className={`flex flex-col gap-4 ${cardClass}`}>
           <h2 className="text-2xl font-extrabold">
             {result.potholes.length === 0 ? "No potholes detected" : `${result.potholes.length} pothole(s) found`}
           </h2>
@@ -224,7 +224,7 @@ export default function UploadPage() {
               </thead>
               <tbody>
                 {result.potholes.map((p, i) => (
-                  <tr key={p.pothole_id} className="border-t border-background">
+                  <tr key={p.pothole_id} className="border-t border-border">
                     <td className="py-1">{i + 1}</td>
                     <td><SeverityChip level={p.severity_level} /></td>
                     <td><BandChip band={p.priority_band} /> {p.priority_score.toFixed(2)}</td>

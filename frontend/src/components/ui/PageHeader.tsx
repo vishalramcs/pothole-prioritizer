@@ -1,36 +1,24 @@
 import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { VentSlots } from "./parts";
 
-// Poster-style colour blocks for page headers only (tables and maps below stay calm for planners).
-// Text colours are chosen per block for WCAG AA: white on blue 600 (5.2:1) and on gray 900, dark on emerald (7.0:1).
-const TONE = {
-  primary: { block: "bg-primary text-white", icon: "bg-white text-primary", shape: "bg-white" },
-  ink: { block: "bg-foreground text-white", icon: "bg-primary-bright text-white", shape: "bg-primary-bright" },
-  emerald: { block: "bg-secondary text-foreground", icon: "bg-foreground text-secondary", shape: "bg-white" },
-} as const;
-
-export default function PageHeader({ title, subtitle, icon: Icon, tone = "primary", children }: {
+/** Page title as a module bolted onto the chassis: screws, vent slots, and the page icon in a raised housing. */
+export default function PageHeader({ title, subtitle, icon: Icon }: {
   title: string;
   subtitle?: string;
   icon: LucideIcon;
-  tone?: keyof typeof TONE;
-  children?: ReactNode;
 }) {
-  const t = TONE[tone];
   return (
-    <header className={`relative overflow-hidden rounded-lg px-6 py-8 sm:px-10 ${t.block}`}>
-      {/* decoration: large flat shapes at low opacity, hidden from screen readers */}
-      <div aria-hidden className={`absolute -right-16 -top-24 h-72 w-72 rounded-full opacity-10 ${t.shape}`} />
-      <div aria-hidden className={`absolute -bottom-20 right-40 h-40 w-40 rotate-12 rounded-lg opacity-10 ${t.shape}`} />
-      <div className="relative flex flex-wrap items-center gap-5">
-        <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${t.icon}`}>
-          <Icon aria-hidden size={28} strokeWidth={2.5} />
+    <header className="screws relative rounded-xl bg-background px-6 py-7 shadow-card sm:px-10">
+      <VentSlots className="absolute right-6 top-5" />
+      <div className="flex flex-wrap items-center gap-5">
+        <span className="group flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-background shadow-floating">
+          <Icon aria-hidden size={28} strokeWidth={1.75}
+            className="text-primary transition-transform duration-200 ease-mechanical group-hover:rotate-12 group-hover:scale-110 motion-reduce:transition-none" />
         </span>
         <div className="min-w-0 flex-1">
-          <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{title}</h1>
-          {subtitle && <p className="mt-1 max-w-3xl text-base">{subtitle}</p>}
+          <h1 className="emboss text-3xl font-extrabold sm:text-4xl">{title}</h1>
+          {subtitle && <p className="mt-1 max-w-[65ch] text-base text-muted">{subtitle}</p>}
         </div>
-        {children}
       </div>
     </header>
   );

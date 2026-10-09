@@ -3,8 +3,10 @@
 import type { Band, SeverityLevel } from "./types";
 
 export const COLORS = {
-  primary: "#2563eb",
-  ink: "#111827",
+  primary: "#b8303e",
+  accent: "#ff4757",
+  ink: "#2d3436",
+  chassis: "#e0e5ec",
   white: "#ffffff",
   repaired: "#6b7785",
   critical: "#c62828",

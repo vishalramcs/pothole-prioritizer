@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { Gauge } from "lucide-react";
 import BarWithTable from "@/components/charts/BarWithTable";
+import { Led } from "@/components/ui/parts";
 import Button from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
-import { fieldClass, labelClass } from "@/components/ui/styles";
+import { cardClass, fieldClass, labelClass, tileClass } from "@/components/ui/styles";
 import { apiFetch } from "@/lib/api";
 import { COLORS } from "@/lib/colors";
 
@@ -66,12 +67,12 @@ export default function EvaluationPage() {
 
   const field = `${fieldClass} mt-1 w-24`;
   const stats: [string, number, string][] = ev ? [
-    ["Open potholes", ev.open_potholes, "text-foreground"], ["Critical", ev.critical_potholes, "text-critical"],
+    ["Open potholes", ev.open_potholes, "text-foreground"], ["Critical", ev.critical_potholes, "text-critical-text"],
     ["Repairs per day", ev.capacity_per_day, "text-primary"], ["Days planned", ev.days, "text-foreground"],
   ] : [];
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader icon={Gauge} tone="ink" title="Is the prioritization working?"
+      <PageHeader icon={Gauge} title="Is the prioritization working?"
         subtitle="SRPPS against simpler ways of ordering the same repairs, with the same crews and days." />
       <p className="max-w-3xl text-muted">
         Every strategy repairs the same open potholes with the same crews and the same number of repairs per day.
@@ -88,21 +89,26 @@ export default function EvaluationPage() {
         <Button type="submit">Run evaluation</Button>
       </form>
 
-      {error && <p role="alert" className="font-semibold text-critical">{error}</p>}
+      {error && <p role="alert" className="font-semibold text-critical-text">{error}</p>}
       {ev && (
         <>
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {stats.map(([k, v, c]) => (
-              <div key={k} className="rounded-lg bg-surface px-6 py-4">
+              <div key={k} className={`${tileClass}`}>
                 <dt className={labelClass}>{k}</dt>
-                <dd className={`text-4xl font-extrabold ${c}`}>{v}</dd>
+                <dd className={`font-mono text-4xl font-bold ${c}`}>{v}</dd>
               </div>
             ))}
           </dl>
           {verdict(ev) && (
-            <p role="status" className="rounded-lg bg-primary px-6 py-4 text-lg font-bold text-white">{verdict(ev)}</p>
+            <div className="rounded-xl bg-background p-2 shadow-recessed">
+              <p role="status" className="scanlines flex items-start gap-3 rounded-lg bg-foreground px-6 py-4 text-lg font-semibold text-white">
+                <span className="mt-2"><Led pulse /></span>
+                <span><span className="block font-mono text-xs font-bold uppercase tracking-[0.08em] text-white/70">Verdict</span>{verdict(ev)}</span>
+              </p>
+            </div>
           )}
-          <div className="overflow-x-auto rounded-lg bg-surface p-6">
+          <div className={`overflow-x-auto ${cardClass}`}>
             <table className="w-full text-left text-sm">
               <caption className="mb-3 text-left text-xl font-bold">Strategies compared</caption>
               <thead className={labelClass}>
@@ -114,7 +120,7 @@ export default function EvaluationPage() {
               </thead>
               <tbody>
                 {ev.strategies.map((s) => (
-                  <tr key={s.strategy} className={`border-t border-background ${s.strategy.startsWith("SRPPS") ? "bg-primary/10 font-bold" : ""}`}>
+                  <tr key={s.strategy} className={`border-t border-border ${s.strategy.startsWith("SRPPS") ? "bg-primary/10 font-bold" : ""}`}>
                     <td className="py-2">{label(s.strategy)}</td>
                     <td>{s.repaired}</td>
                     <td>{s.priority_addressed_pct}%</td>
@@ -146,7 +152,7 @@ export default function EvaluationPage() {
             ))}
           </div>
 
-          <details className="rounded-lg bg-surface p-6">
+          <details className={`${cardClass}`}>
             <summary className="cursor-pointer text-xl font-bold">Show details: how sensitive is the ranking to the weights?</summary>
             <div className="mt-3 overflow-x-auto">
             <table className="w-full max-w-2xl text-left text-sm">
@@ -155,7 +161,7 @@ export default function EvaluationPage() {
               </thead>
               <tbody>
                 {ev.sensitivity.map((r) => (
-                  <tr key={r.weight + r.change} className="border-t border-background">
+                  <tr key={r.weight + r.change} className="border-t border-border">
                     <td className="py-1">{r.weight}</td><td>{r.change}</td><td>{show(r.top_n_overlap_pct, "%")}</td><td>{r.spearman}</td>
                   </tr>
                 ))}

@@ -69,7 +69,7 @@ export default function CrewsPanel({ crews, onChanged }: { crews: Crew[]; onChan
         <input aria-label="New crew repairs per day" type="number" min={1} max={100} className={`${input} w-16`} value={cap} onChange={(e) => setCap(e.target.value)} />
         <Button type="submit" variant="outline" size="sm" disabled={!name.trim()}>Add crew</Button>
       </form>
-      {error && <p role="alert" className="text-xs text-critical">{error}</p>}
+      {error && <p role="alert" className="text-xs text-critical-text">{error}</p>}
     </section>
   );
 }

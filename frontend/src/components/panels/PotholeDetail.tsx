@@ -69,15 +69,15 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
   const shown = p?.pothole_id === id ? p : null; // never show the previous pothole while the next loads
 
   return (
-    <aside aria-label="Pothole detail" className="flex h-full flex-col gap-4 overflow-y-auto rounded-lg bg-surface p-5">
+    <aside aria-label="Pothole detail" className="screws flex h-full flex-col gap-4 overflow-y-auto rounded-xl bg-background p-6 shadow-card">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-extrabold">Pothole #{id}</h2>
         <button type="button" onClick={onClose} aria-label="Close detail panel"
-          className={`flex h-9 w-9 items-center justify-center rounded-md bg-background transition-colors duration-200 hover:bg-border ${focusRing}`}>
+          className={`flex h-10 w-10 items-center justify-center rounded-full bg-background shadow-card transition-all duration-150 ease-mechanical hover:text-primary active:translate-y-[2px] active:shadow-pressed ${focusRing}`}>
           <X aria-hidden size={18} strokeWidth={2.5} />
         </button>
       </div>
-      {error && <p role="alert" className="text-critical">{error}</p>}
+      {error && <p role="alert" className="text-critical-text">{error}</p>}
       {!shown && !error && <p className="text-muted">Loading…</p>}
       {shown && (
         <>
@@ -91,14 +91,14 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
             }]}
           />
           {shown.is_demo && (
-            <p className="rounded-md bg-background px-3 py-2 text-xs font-medium text-muted">
+            <p className="rounded-md bg-background px-3 py-2 text-xs font-medium text-muted shadow-recessed">
               Demo data: the location and road are made up; the detection is the model&apos;s real result on a sample photo.
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2">
             <BandChip band={shown.priority_band} />
-            <span className="text-lg font-extrabold">Priority {shown.priority_score.toFixed(2)}</span>
-            {shown.safety_override && <span className="text-xs font-semibold text-critical">safety override</span>}
+            <span className="text-lg font-extrabold">Priority <span className="font-mono">{shown.priority_score.toFixed(2)}</span></span>
+            {shown.safety_override && <span className="text-xs font-semibold text-critical-text">safety override</span>}
             <span className="text-muted">· {shown.status}</span>
           </div>
 
@@ -123,10 +123,10 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
                         {(key === "traffic" || key === "importance") && shown.road_data_source && ROAD_SOURCE[shown.road_data_source] &&
                           <SourceBadge {...ROAD_SOURCE[shown.road_data_source][key]} />}
                       </span>
-                      <span>{b.value.toFixed(2)} × {b.weight.toFixed(2)} = <b>{b.contribution.toFixed(3)}</b></span>
+                      <span className="font-mono">{b.value.toFixed(2)} × {b.weight.toFixed(2)} = <b>{b.contribution.toFixed(3)}</b></span>
                     </div>
-                    <div className="mt-1 h-2.5 rounded-sm bg-background" aria-hidden>
-                      <div className="h-2.5 rounded-sm bg-primary" style={{ width: `${b.value * 100}%` }} />
+                    <div className="mt-1 h-3 rounded-full bg-recessed p-0.5 shadow-[inset_1px_1px_3px_rgba(0,0,0,0.2)]" aria-hidden>
+                      <div className="h-2 rounded-full bg-foreground" style={{ width: `${b.value * 100}%` }} />
                     </div>
                   </li>
                 );

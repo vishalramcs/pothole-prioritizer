@@ -7,7 +7,7 @@ import { RefreshCw, Route } from "lucide-react";
 import CrewsPanel from "@/components/plan/CrewsPanel";
 import Button, { buttonClass } from "@/components/ui/Button";
 import PageHeader from "@/components/ui/PageHeader";
-import { fieldClass, focusRing, labelClass } from "@/components/ui/styles";
+import { cardClass, fieldClass, focusRing, labelClass } from "@/components/ui/styles";
 import { BandChip } from "@/components/ui/chips";
 import { apiFetch, json } from "@/lib/api";
 import type { Crew, PlannedStop, PlanResult, Pothole, Zone } from "@/lib/types";
@@ -55,12 +55,12 @@ export default function ZonesPlanPage() {
     <PageHeader icon={Route} title="Zones and repair plan"
       subtitle="Each day the most urgent potholes are repaired; nearby ones are grouped into zones so crews drive less." />
     <div className="flex flex-col gap-4 lg:h-[75vh] lg:flex-row">
-      <section aria-label="Zones map" className="h-[50vh] flex-1 lg:h-auto">
+      <section aria-label="Zones map" className="h-[50vh] flex-1 rounded-xl p-2 shadow-recessed lg:h-auto">
         <PotholeMap potholes={potholes} zones={zones} selectedId={null} highlightZone={highlight} />
       </section>
 
-      <div className="flex flex-col gap-6 overflow-y-auto rounded-lg bg-surface p-6 lg:w-[28rem]">
-        {error && <p role="alert" className="font-semibold text-critical">{error}</p>}
+      <div className={`flex flex-col gap-6 overflow-y-auto ${cardClass} lg:w-[28rem]`}>
+        {error && <p role="alert" className="font-semibold text-critical-text">{error}</p>}
 
         <section aria-label="Zones" className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
@@ -80,7 +80,7 @@ export default function ZonesPlanPage() {
               <tbody>
                 {zones.map((z) => (
                   <tr key={z.zone_id}
-                    className={`cursor-pointer border-t border-background hover:bg-background ${highlight === z.zone_id ? "bg-primary/10 font-bold" : ""}`}
+                    className={`cursor-pointer border-t border-border hover:bg-background ${highlight === z.zone_id ? "bg-primary/10 font-bold" : ""}`}
                     onClick={() => setHighlight(highlight === z.zone_id ? null : z.zone_id)}>
                     <td className="py-1">
                       <button type="button" className={`font-[inherit] ${focusRing}`} aria-pressed={highlight === z.zone_id}
@@ -124,7 +124,7 @@ export default function ZonesPlanPage() {
                 </p>
               )}
               {[...byCrew.entries()].map(([crew, stops]) => (
-                <div key={crew} className="rounded-lg bg-background p-4">
+                <div key={crew} className="rounded-lg bg-background p-4 shadow-recessed">
                   <h3 className="text-lg font-bold">{crew}</h3>
                   <ol className="mt-1 space-y-1 text-sm">
                     {stops.map((s, i) => (

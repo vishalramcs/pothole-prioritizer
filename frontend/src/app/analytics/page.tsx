@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import BarWithTable from "@/components/charts/BarWithTable";
 import PageHeader from "@/components/ui/PageHeader";
-import { labelClass } from "@/components/ui/styles";
+import { labelClass, tileClass } from "@/components/ui/styles";
 import { apiFetch } from "@/lib/api";
 import { COLORS } from "@/lib/colors";
 
@@ -27,21 +27,21 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader icon={BarChart3} tone="emerald" title="Road condition analytics"
+      <PageHeader icon={BarChart3} title="Road condition analytics"
         subtitle="What is open, how bad it is, where it keeps coming back, and how fast crews close it." />
-      {error && <p role="alert" className="font-semibold text-critical">{error}</p>}
+      {error && <p role="alert" className="font-semibold text-critical-text">{error}</p>}
       {!s && !error && <p className="text-muted">Loading…</p>}
       {s && (
         <>
           <div className="flex flex-wrap gap-4">
-            <p className="rounded-lg bg-surface px-6 py-4">
+            <p className={`${tileClass}`}>
               <span className={`block ${labelClass}`}>Average days from detection to repair</span>
-              <span className="text-4xl font-extrabold text-primary">{s.avg_days_to_repair ?? "–"}</span>
+              <span className="font-mono text-4xl font-bold text-primary">{s.avg_days_to_repair ?? "–"}</span>
             </p>
             {s.done_by_crew.map((c) => (
-              <p key={c.name} className="rounded-lg bg-surface px-6 py-4">
+              <p key={c.name} className={`${tileClass}`}>
                 <span className={`block ${labelClass}`}>Repairs done by {c.name}</span>
-                <span className="text-4xl font-extrabold">{c.done}</span>
+                <span className="font-mono text-4xl font-bold">{c.done}</span>
               </p>
             ))}
           </div>
