@@ -146,9 +146,17 @@ Location factor computed from 2,063 OpenStreetMap facilities (746 schools, 682 h
 
 What this shows, honestly: SRPPS always fixes the Critical potholes first and leaves the least exposure, but its edge over first-come-first-served is small on this data (exposure 7% lower over 3 days), because these uploads were not in a harmful order to begin with. Grouping by zone halves travel against plain priority order (8.6 vs 25.4 km, 11.1 vs 22.8 km) and over 3 days matches first-come-first-served's travel while fixing more Critical potholes. The exposure metric uses two of the priority's own inputs, so a priority-based strategy is expected to do well on it. These numbers led to one design change: the first planner (whole zones ranked by average priority) fixed only 80% of Critical potholes on day 1 and travelled more, so it was replaced (TRD 4.7).
 
+## ML pipeline (research companion)
+`ml_pipeline/` trains a two-branch network (ResNet18 on the photo + MLP on OpenStreetMap context) to predict
+priority and severity, schedules repairs under a budget (0/1 knapsack), explains the ranking (formula breakdown,
+SHAP, Folium map) and evaluates it against baselines. Its labels come from our own formulas, so the model learns
+those formulas, and on unseen areas it ranks worse than sorting by severity alone. Details, results and
+limitations: `ml_pipeline/README.md` and `ml_pipeline/DATA_NOTES.md`. The web app does not use this model.
+
 ## External Resources
 - **Pothole detection model:** [Samdutse/pothole-yolov8](https://huggingface.co/Samdutse/pothole-yolov8) (YOLOv8s fine-tuned on the Smartathon pothole dataset from Roboflow Universe). **Its model card states no licence**: fine for building and judging, but ask the author before publishing or selling. Drop-in alternative: [tahaUgan/pothole-yolo11n](https://huggingface.co/tahaUgan/pothole-yolo11n) (CC-BY-4.0); change `MODEL_URL` in `backend/scripts/download_model.py`. In our comparison on 10 photos (7 with potholes, 3 clean roads) the first model boxed the pothole in 6 of the 7; the second found nothing in 3 close-up shots and boxed a patch of sky on a clean road.
 - **Ultralytics YOLO:** AGPL-3.0 (as far as we know; check before any commercial use).
+- **ML pipeline photos:** 241 images from Roboflow "Potholes Detection" by project-ssayl (CC BY 4.0), via Hugging Face `Ryukijano/Pothole-detection-Yolov8`; ImageNet ResNet18 weights from torchvision.
 - **Sample photos:** 5 photos from Wikimedia Commons (CC0, CC BY 4.0, CC BY-SA 4.0); authors and links in `sample_data/README.md`.
 - **Libraries:** FastAPI, SQLAlchemy, psycopg (LGPL), Pillow, scikit-learn, OpenCV, pgserver, Next.js, React, Tailwind CSS, Leaflet (BSD-2), react-leaflet, Chart.js, react-chartjs-2 (open source; check each licence).
 - **Map tiles and facility locations:** © OpenStreetMap contributors (ODbL), attribution shown on every map and next to facility distances.

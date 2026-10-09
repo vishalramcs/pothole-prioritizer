@@ -197,7 +197,12 @@ def prox(d, scale=500.0):
     return np.exp(-d / scale)
 
 
-def add_priority(df):
+# context weights of the priority label (evaluate.py varies them +/-20% for the sensitivity check)
+CTX_WEIGHTS = {"importance": 0.30, "facility": 0.25, "traffic": 0.20, "speed": 0.10, "risk": 0.15}
+
+
+def priority_parts(df, w=CTX_WEIGHTS):
+    """Every term of the priority label, so explain.py can show the breakdown the label really uses."""
     imp = df.road_class.map(IMPORTANCE).values
     fac = np.maximum.reduce([prox(df.dist_hospital_m.values), 0.8 * prox(df.dist_school_m.values),
                              0.6 * prox(df.dist_fire_station_m.values), 0.3 * prox(df.dist_bus_stop_m.values, 300)])
@@ -206,13 +211,20 @@ def add_priority(df):
     age_n = (np.clip(df.days_unrepaired / 90, 0, 1) * 0.5 + np.clip(df.complaint_count / 10, 0, 1) * 0.5).fillna(0)
     risk = np.clip(0.4 * df.is_junction + 0.3 * df.is_curve_or_bridge + 0.1 * np.clip(df.past_accidents_nearby / 4, 0, 1)
                    + 0.2 * df.rain_or_poor_lighting, 0, 1).fillna(0)
-    ctx = 0.30 * imp + 0.25 * fac + 0.20 * traffic_n + 0.10 * speed_n + 0.15 * risk
     sev = df.severity.values
-    p = sev * (0.35 + 0.65 * ctx) + 0.08 * age_n
+    parts = pd.DataFrame({"severity_base": sev * 0.35, "age_and_complaints": 0.08 * age_n}, index=df.index)
+    for name, x in [("importance", imp), ("facility", fac), ("traffic", traffic_n), ("speed", speed_n), ("risk", risk)]:
+        parts[name] = sev * 0.65 * w[name] * x  # context only counts in proportion to severity
+    p = parts.sum(axis=1).values
     near = ((df.dist_hospital_m < 300) | (df.dist_school_m < 300)) & (sev > 0.25)
-    p = np.where(near, np.maximum(p, 0.45 + 0.3 * sev), p)
-    p = np.where((sev > 0.85) & df.road_class.isin(["highway", "arterial"]), np.maximum(p, 0.92), p)
-    df["priority_score"] = np.clip(p, 0, 1).round(4)
+    floored = np.where(near, np.maximum(p, 0.45 + 0.3 * sev), p)
+    floored = np.where((sev > 0.85) & df.road_class.isin(["highway", "arterial"]), np.maximum(floored, 0.92), floored)
+    parts["safety_floor_uplift"] = floored - p
+    return parts
+
+
+def add_priority(df, w=CTX_WEIGHTS):
+    df["priority_score"] = np.clip(priority_parts(df, w).sum(axis=1), 0, 1).round(4)
     df["priority_rank"] = df.priority_score.rank(ascending=False, method="first").astype(int)
     return df
 

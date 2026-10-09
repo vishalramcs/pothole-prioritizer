@@ -58,3 +58,13 @@ def test_daily_schedule_respects_hours():
     plan = daily_schedule(sel, crews=1, hours=8, depot=(11.0, 77.0))
     assert len(plan) == 6 and plan.day.max() == 3  # 2 sites of 3 h fit in an 8 h day
     assert plan.groupby(["day", "crew"]).crew_hours.sum().max() <= 8
+
+
+def test_knapsack_never_loses_to_greedy_with_uneven_costs():
+    """Regression: rounding costs up to 100 rupees made the 'optimal' pick worse than greedy."""
+    rng = np.random.default_rng(1)
+    for _ in range(30):
+        values, costs = rng.random(40), rng.integers(1500, 5200, 40).astype(float)
+        budget = float(costs.sum() * 0.4)
+        k, g = knapsack(values, costs, budget), greedy(values, costs, budget)
+        assert costs[k].sum() <= budget and values[k].sum() >= values[g].sum() - 1e-9

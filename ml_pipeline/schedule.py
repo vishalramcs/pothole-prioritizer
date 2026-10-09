@@ -34,8 +34,10 @@ def estimate(severity: np.ndarray) -> pd.DataFrame:
                          "crew_hours": (HOURS_FIXED + HOURS_PER_M2 * area).round(2)})
 
 
-def knapsack(values: np.ndarray, costs: np.ndarray, budget: float, unit: int = 100) -> list[int]:
-    """Exact 0/1 knapsack by dynamic programming over cost rounded UP to `unit` (never exceeds the budget)."""
+def knapsack(values: np.ndarray, costs: np.ndarray, budget: float, unit: int = 1) -> list[int]:
+    """0/1 knapsack by dynamic programming over costs rounded UP to `unit` rupees (never exceeds the budget).
+    unit=1 is exact for whole-rupee costs; a bigger unit wastes budget (it once lost to greedy at unit=100).
+    shortcut: memory is items x budget/unit booleans (~29 MB for 145 items and 2 lakh); raise unit for big budgets."""
     w = np.ceil(np.asarray(costs) / unit).astype(int)
     cap = int(budget // unit)
     best = np.zeros(cap + 1)
@@ -126,8 +128,7 @@ def main() -> None:
     ap.add_argument("--crews", type=int, default=2)
     ap.add_argument("--hours", type=float, default=8)
     a = ap.parse_args()
-    df = pd.read_csv(HERE / "outputs" / "scored.csv")  # from evaluate.py (model predictions for every row)
-    df = pd.concat([df, estimate(df.pred_severity)], axis=1)
+    df = pd.read_csv(HERE / "outputs" / "scored.csv")  # from evaluate.py: predictions + estimate() costs per row
     df["priority"] = df.pred_priority
     df["cluster"] = clusters(df.lat.to_numpy(), df.lon.to_numpy())
     values, costs = df.priority.to_numpy(), df.cost_inr.to_numpy()
