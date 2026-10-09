@@ -12,7 +12,7 @@ supabase==2.32.0
 pytest==9.1.1
 httpx==0.28.1
 
-# ML and clustering: NOT installed or tested in the skeleton. Add and pin when you start 2.2 / 4.3.
-# ultralytics
-# scikit-learn
-# numpy
+# ML and clustering (torch comes in through ultralytics, ~200 MB+)
+ultralytics==8.4.174
+scikit-learn==1.9.1
+numpy==2.5.3
