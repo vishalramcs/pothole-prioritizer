@@ -6,6 +6,7 @@ stop it with:  python scripts/local_db.py --stop
 On first start it applies supabase/migrations/*.sql and supabase/seed.sql.
 Needs: pip install pgserver (a dev tool, not in requirements.txt).
 """
+import os
 import sys
 from pathlib import Path
 
@@ -13,7 +14,8 @@ import pgserver
 import psycopg
 
 # Postgres tools break on paths with spaces, so keep the data outside the repo folder.
-PGDATA = Path.home() / ".srpps-pgdata"
+# SRPPS_PGDATA picks another folder, e.g. a throwaway database for a fresh-clone test.
+PGDATA = Path(os.environ.get("SRPPS_PGDATA") or Path.home() / ".srpps-pgdata")
 SQL_DIR = Path(__file__).resolve().parents[2] / "supabase"
 
 
