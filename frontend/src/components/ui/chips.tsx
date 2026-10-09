@@ -26,13 +26,26 @@ export function SeverityChip({ level }: { level: SeverityLevel }) {
   return <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${SEVERITY_CLASS[level]}`}>{level}</span>;
 }
 
-export function DemoBadge() {
+/** Where a value comes from, shown next to it (e.g. "OSM road class", "estimated from road type"). */
+export function SourceBadge({ text, title }: { text: string; title: string }) {
   return (
-    <span className="ml-1 rounded-sm bg-background px-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted" title="Mock values, not real traffic data">
-      demo data
+    <span className="ml-1 rounded-sm bg-background px-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted" title={title}>
+      {text}
     </span>
   );
 }
+
+// For roads from OpenStreetMap: importance is the real road class, traffic is an estimate from it.
+export const ROAD_SOURCE: Record<string, Record<"traffic" | "importance", { text: string; title: string }>> = {
+  osm_estimate: {
+    importance: { text: "OSM road class", title: "From the road's class on OpenStreetMap" },
+    traffic: { text: "estimated from road type", title: "Estimated from the OpenStreetMap road class and lane count; no live traffic counts" },
+  },
+  mock: {
+    importance: { text: "demo data", title: "Mock value" },
+    traffic: { text: "demo data", title: "Mock value, not real traffic data" },
+  },
+};
 
 export const THRESHOLD_NOTE =
   "Demo thresholds and weights, not validated standards. Severity is a relative estimate from the image, not measured depth.";

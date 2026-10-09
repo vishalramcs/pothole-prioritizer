@@ -21,7 +21,7 @@ router = APIRouter(prefix="/uploads", tags=["uploads"])
 def create_upload(
     conn: Conn,
     file: Annotated[UploadFile, File()],
-    road_id: Annotated[int, Form()],
+    road_id: Annotated[int | None, Form()] = None,  # none: found on OpenStreetMap from the location
     lat: Annotated[float | None, Form()] = None,
     lng: Annotated[float | None, Form()] = None,
     gps_source: Annotated[Literal["manual", "map_click"], Form()] = "manual",

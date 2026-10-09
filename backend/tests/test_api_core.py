@@ -20,11 +20,11 @@ ALLOWED = {
 }
 
 
-def road_id(conn, name="Demo Highway") -> int:
+def road_id(conn, name="Test Highway") -> int:
     return conn.execute(text("SELECT road_id FROM roads WHERE name = :n"), {"n": name}).scalar_one()
 
 
-def make_pothole(conn, current="Pending", lat=12.97, lng=77.59, road="Demo Highway") -> int:
+def make_pothole(conn, current="Pending", lat=12.97, lng=77.59, road="Test Highway") -> int:
     up = uploads.insert(conn, storage_path="uploads/test.jpg", media_type="image", lat=lat, lng=lng,
                         gps_source="manual", road_id=road_id(conn, road), image_width=100, image_height=100)
     pid = potholes.insert(conn, upload_id=up, road_id=road_id(conn, road), lat=lat, lng=lng,
@@ -125,7 +125,7 @@ def test_upload_saves_scored_potholes(client, conn, fake_detector):
     high, low = body["potholes"]
     assert high["severity_level"] == "High" and high["area_ratio"] == pytest.approx(0.09)
     assert low["severity_level"] == "Low"
-    # severity 0.9 on Demo Highway (traffic 0.9, importance 1.0), no repeats, no facility
+    # severity 0.9 on Test Highway (traffic 0.9, importance 1.0), no repeats, no facility
     assert high["priority_score"] == pytest.approx(0.9 * 0.40 + 0.9 * 0.20 + 1.0 * 0.15)
     assert high["priority_band"] == "Moderate"  # 0.69: just under Critical (0.70)
     listed = client.get("/api/potholes").json()

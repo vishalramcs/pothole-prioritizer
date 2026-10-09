@@ -59,10 +59,10 @@ export default function UploadPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file || fileError(file) || coordError || !roadId) return;
+    if (!file || fileError(file) || coordError) return;
     const form = new FormData();
     form.append("file", file);
-    form.append("road_id", roadId);
+    if (roadId) form.append("road_id", roadId); // empty: the backend finds the road on OpenStreetMap
     if (lat !== "") {
       form.append("lat", lat);
       form.append("lng", lng);
@@ -97,9 +97,9 @@ export default function UploadPage() {
           // eslint-disable-next-line @next/next/no-img-element -- local preview from an object URL
           : <img src={preview} alt="Selected photo preview" className="max-h-72 rounded-md object-contain" />)}
 
-        <label className={fieldLabel}>Road
-          <select required className={field} value={roadId} onChange={(e) => setRoadId(e.target.value)}>
-            <option value="">Choose the road…</option>
+        <label className={fieldLabel}>Road (optional: found from the location if left empty)
+          <select className={field} value={roadId} onChange={(e) => setRoadId(e.target.value)}>
+            <option value="">Find automatically (OpenStreetMap)</option>
             {roads.map((r) => <option key={r.road_id} value={r.road_id}>{r.name} ({r.road_type})</option>)}
           </select>
         </label>
@@ -126,7 +126,7 @@ export default function UploadPage() {
           />
         </fieldset>
 
-        <Button type="submit" size="lg" disabled={busy || !file || !roadId || !!coordError}>
+        <Button type="submit" size="lg" disabled={busy || !file || !!coordError}>
           <ScanSearch aria-hidden size={20} strokeWidth={2.5} />
           {busy ? (isVideo ? "Analyzing video…" : "Analyzing image…") : "Detect potholes"}
         </Button>

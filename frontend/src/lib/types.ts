@@ -36,7 +36,7 @@ export interface Pothole {
   road_type: RoadType | null;
   traffic_score: number | null;
   importance_score: number | null;
-  road_data_source: "mock" | "real" | null;
+  road_data_source: "mock" | "real" | "osm_estimate" | null;
   image_width: number;
   image_height: number;
   is_demo: boolean;
@@ -61,7 +61,7 @@ export interface Road {
   road_type: RoadType;
   importance_score: number;
   traffic_score: number;
-  data_source: "mock" | "real";
+  data_source: "mock" | "real" | "osm_estimate";
 }
 
 export interface UploadedPothole extends Pothole {

@@ -11,7 +11,7 @@ Identify road damage from available data and help authorities decide which locat
 - Submission deadline: TODO (YYYY-MM-DD HH:MM)
 
 ## Solution
-A reporter uploads a road photo or short video with its location and road. A pretrained YOLO model finds the potholes; each gets a relative severity from how much of the image it covers, and a 0 to 1 repair priority that also weighs the road's traffic, its importance, repeat damage at that spot, and how close it is to a hospital, clinic, school or fire station (OpenStreetMap). Planners see every pothole on a map coloured by priority, group nearby ones into maintenance zones, enter their crews and how many repairs each can do per day, and get a day-by-day repair sequence. Marking repairs as started or done updates the map and the analytics. An Evaluation page measures the strategy against first-come-first-served, severity-only and random ordering, and checks how much the ranking depends on the chosen weights.
+A reporter uploads a road photo or short video with its location; the app looks up the real road there on OpenStreetMap. A pretrained YOLO model finds the potholes; each gets a relative severity from how much of the image it covers, and a 0 to 1 repair priority that also weighs the road's traffic, its importance, repeat damage at that spot, and how close it is to an important building: hospital, clinic, fire station, school, college, university, police station, bus or railway station (OpenStreetMap). Planners see every pothole on a map coloured by priority, group nearby ones into maintenance zones, enter their crews and how many repairs each can do per day, and get a day-by-day repair sequence. Marking repairs as started or done updates the map and the analytics. An Evaluation page measures the strategy against first-come-first-served, severity-only and random ordering, and checks how much the ranking depends on the chosen weights.
 
 Pipeline: image → detected pothole → severity → priority score → map → zones → repair order.
 
@@ -23,13 +23,13 @@ Ticked = built, and covered by automated tests and a manual check in Chrome agai
 - [x] GPS map (P0) (EXIF GPS, typed coordinates, or map click)
 - [x] Priority score (P0) with per-factor breakdown
 - [x] Repair tracking (P0) (Pending / Scheduled / In Progress / Repaired)
-- [x] Traffic and road importance (P1) (mock values, labelled "demo data")
+- [x] Traffic and road importance (P1): the real road from OpenStreetMap at the pothole's location; importance from its road class, traffic **estimated** from class and lane count (labelled in the UI)
 - [x] Repeat-damage detection (P1) (same pothole seen again; damage back after repair)
 - [x] Maintenance zones (P1) (DBSCAN)
 - [x] Video input (P2) (one frame per second, same pothole across frames merged)
 - [x] Repair sequence optimization (P2) (greedy, per crew and day; overflow reported)
 - [x] Analytics (P2) (charts with data tables)
-- [x] Location factor: proximity to hospitals, clinics, schools, fire stations (OpenStreetMap)
+- [x] Location factor: proximity to important buildings (hospitals, clinics, fire stations, schools, colleges, universities, police, bus and railway stations; OpenStreetMap)
 - [x] Evaluation of the prioritization: baselines, exposure, travel, weight sensitivity
 
 Not done: a screen to edit road traffic/importance (the API `PUT /api/roads/{id}` works; there is no form), hosted Supabase test (see How to Run).
@@ -66,7 +66,7 @@ Measured on the development laptop (CPU only): detection takes about 0.12 s per 
 Tested on Windows 11 with Python 3.12 and Node 24, against a local Postgres. **Not yet tested against a hosted Supabase project.**
 
 **1. Database.** Pick one:
-- *Supabase:* in the SQL Editor run, in order, `supabase/migrations/0001_init_schema.sql`, `0002_enable_rls.sql`, `0003_demo_flag.sql`, `0004_facilities.sql`, then `supabase/seed.sql`. Create a private Storage bucket `road-images`. Use the **Session pooler** connection string.
+- *Supabase:* in the SQL Editor run, in order, `supabase/migrations/0001_init_schema.sql`, `0002_enable_rls.sql`, `0003_demo_flag.sql`, `0004_facilities.sql`, `0005_osm_roads.sql`, then `supabase/seed.sql`. Create a private Storage bucket `road-images`. Use the **Session pooler** connection string.
 - *Local (no internet needed for the database):* step 2 below starts one.
 
 **2. Backend** (first terminal)
@@ -82,7 +82,8 @@ pip install pgserver
 python scripts/local_db.py          # prints DATABASE_URL=...; put it in .env and blank SUPABASE_URL
                                     # (with no SUPABASE_URL, images are stored in backend/uploads/)
 python scripts/load_demo_data.py    # optional demo potholes (labelled as demo data in the UI)
-python scripts/import_facilities.py # optional: hospitals/schools from OpenStreetMap (needs internet once)
+python scripts/import_facilities.py # important buildings from OpenStreetMap (needs internet once)
+python scripts/relink_roads.py     # only for databases from before 0005: move potholes off the old demo roads
 uvicorn app.main:app                # http://localhost:8000/docs
 ```
 Check: `http://localhost:8000/api/health/db` says `reachable`.
@@ -108,7 +109,7 @@ Database tests run inside a transaction that is rolled back, so they leave no da
 
 ## Demo
 1. Run `python scripts/load_demo_data.py`, open **Zones and Plan** and click **Recompute zones**, then start on the **Map**.
-2. **Upload** a photo from `sample_data/images` on *Demo Main Road*: boxes, severity and priority appear.
+2. **Upload** a photo from `sample_data/images` and click a spot on a main road: the app finds the road, boxes the potholes and scores them.
 3. Upload the same photo at the same coordinates again: the results say "Yes, same pothole (seen again)" and its priority rises (repeat damage).
 4. **Zones and Plan**: recompute zones, keep the 2 seeded crews, set 3 days, **Generate plan**.
 5. **Repairs**: mark one Scheduled pothole repaired, then show the **Map** (hollow marker with status "All") and **Analytics**.
@@ -168,8 +169,9 @@ Claude (Anthropic) was used for planning and drafting the documents in `docs/` a
 
 ## Limitations
 - Severity is a relative 2D estimate (share of the image the box covers), not depth; camera distance and angle change it.
-- Traffic density and road importance are mock values, labelled "demo data" in the UI.
-- The location factor depends on OpenStreetMap's coverage of hospitals, clinics, schools and fire stations. The public Overpass servers are sometimes down (we hit HTTP 504/500 before a later attempt worked); the script then changes nothing and can simply be re-run.
+- Road importance comes from the OpenStreetMap road class at the pothole's location; **traffic is an estimate** from that class and the lane count, because no free source of real traffic counts exists for these roads. Both are labelled in the detail panel.
+- Uploads without a picked road need OpenStreetMap's Overpass API; when it is down (it often answers 504), pick the road from the list instead. A pothole is matched to a road only within 60 m; when several are close, the more important road wins (a driveway next to a main road is not chosen).
+- The location factor depends on OpenStreetMap's coverage of important buildings. The public Overpass servers are sometimes down (we hit HTTP 504/500 before a later attempt worked); the script then changes nothing and can simply be re-run.
 - The evaluation is a simulation on the stored potholes, not a field trial; its exposure metric uses traffic and severity, which the priority also uses.
 - All potholes in one photo or video clip share its single GPS point (phone GPS is roughly 5 to 10 m off).
 - With the seeded mock data a pothole on the local road cannot reach Critical (max 0.66). Intended: priority is about impact.

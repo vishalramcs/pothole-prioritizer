@@ -6,7 +6,7 @@ import { COLORS } from "@/lib/colors";
 import type { PotholeDetail as Detail } from "@/lib/types";
 import StatusButtons from "@/components/repairs/StatusButtons";
 import { X } from "lucide-react";
-import { BandChip, DemoBadge, SeverityChip, THRESHOLD_NOTE } from "@/components/ui/chips";
+import { BandChip, ROAD_SOURCE, SeverityChip, SourceBadge, THRESHOLD_NOTE } from "@/components/ui/chips";
 import { focusRing, labelClass } from "@/components/ui/styles";
 
 const PARTS = [
@@ -14,7 +14,7 @@ const PARTS = [
   { key: "traffic", label: "Traffic" },
   { key: "importance", label: "Road importance" },
   { key: "repeat", label: "Repeat damage" },
-  { key: "facility", label: "Near hospital / school / fire station" },
+  { key: "facility", label: "Near an important building" },
 ] as const;
 
 /** Photo with the detected box drawn over it (box is in stored-image pixels, so use percentages). */
@@ -119,7 +119,9 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
                   <li key={key}>
                     <div className="flex justify-between text-xs">
                       <span>
-                        {label} {(key === "traffic" || key === "importance") && shown.road_data_source === "mock" && <DemoBadge />}
+                        {label}{" "}
+                        {(key === "traffic" || key === "importance") && shown.road_data_source && ROAD_SOURCE[shown.road_data_source] &&
+                          <SourceBadge {...ROAD_SOURCE[shown.road_data_source][key]} />}
                       </span>
                       <span>{b.value.toFixed(2)} × {b.weight.toFixed(2)} = <b>{b.contribution.toFixed(3)}</b></span>
                     </div>

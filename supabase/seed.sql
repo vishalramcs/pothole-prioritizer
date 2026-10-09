@@ -1,4 +1,4 @@
--- Demo seed. Roads and traffic values are MOCK data; every road is labelled data_source = 'mock'.
+-- Seed: tunable config and two crews. Roads come from OpenStreetMap at upload time.
 -- All config values are assumptions to tune, not standards.
 
 INSERT INTO public.config (key, value) VALUES
@@ -21,11 +21,7 @@ INSERT INTO public.config (key, value) VALUES
   ('VIDEO_IOU_MIN',          '0.30'),
   ('SAFETY_FLOOR_SEVERITY',  '0');
 
-INSERT INTO public.roads (name, road_type, importance_score, traffic_score, data_source) VALUES
-  ('Demo Highway',       'highway',   1.0, 0.90, 'mock'),
-  ('Demo Main Road',     'arterial',  0.8, 0.70, 'mock'),
-  ('Demo Market Street', 'collector', 0.5, 0.60, 'mock'),
-  ('Demo Lane',          'local',     0.3, 0.20, 'mock');
+-- No roads here: each pothole's road is looked up on OpenStreetMap at upload time (migration 0005).
 
 INSERT INTO public.crews (name, capacity_per_day) VALUES
   ('Crew A', 5),

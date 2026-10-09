@@ -1,4 +1,4 @@
-"""Import hospitals, clinics, schools and fire stations from OpenStreetMap, then rescore every pothole.
+"""Import important buildings (see services/facilities.KINDS) from OpenStreetMap, then rescore every pothole.
 
 Run from backend/:  python scripts/import_facilities.py [south west north east]
 Default box: central Bengaluru, around the demo data. Needs internet once; afterwards everything is local.
@@ -23,8 +23,8 @@ DEFAULT_BOX = (12.90, 77.53, 13.02, 77.68)
 
 def fetch(box: tuple[float, ...]) -> dict:
     s, w, n, e = box
-    query = (f'[out:json][timeout:90];nwr["amenity"~"^({"|".join(facilities.KINDS)})$"]({s},{w},{n},{e});'
-             "out center tags;")
+    query = (f'[out:json][timeout:90];(nwr["amenity"~"^({"|".join(facilities.AMENITIES)})$"]({s},{w},{n},{e});'
+             f'nwr["railway"="station"]({s},{w},{n},{e}););out center tags;')
     body = urllib.parse.urlencode({"data": query}).encode()
     for url in OVERPASS:
         try:

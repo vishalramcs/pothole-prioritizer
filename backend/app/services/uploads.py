@@ -10,7 +10,7 @@ from sqlalchemy import Connection
 
 from app.core.config import get_settings
 from app.repositories import config, potholes, roads, uploads
-from app.services import detector, facilities, gps, matching, priority, severity, storage, video
+from app.services import detector, facilities, gps, matching, osm_roads, priority, severity, storage, video
 
 FORMATS = {"JPEG", "PNG"}
 VIDEO_TYPES = {".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"}
@@ -23,7 +23,7 @@ class UploadError(Exception):
         self.status_code = status_code
 
 
-def process_image(conn: Connection, data: bytes, road_id: int, lat: float | None, lng: float | None,
+def process_image(conn: Connection, data: bytes, road_id: int | None, lat: float | None, lng: float | None,
                   gps_source: str) -> dict:
     s = get_settings()
     bad_file = f"Use a JPG or PNG under {s.max_upload_mb} MB"
@@ -37,9 +37,6 @@ def process_image(conn: Connection, data: bytes, road_id: int, lat: float | None
     if img.format not in FORMATS:
         raise UploadError(400, bad_file)
 
-    road = roads.get(conn, road_id)
-    if road is None:
-        raise UploadError(400, "Pick a road from the list")
     if lat is None and lng is None:
         found = gps.exif_gps(img)
         if found is None:
@@ -49,6 +46,7 @@ def process_image(conn: Connection, data: bytes, road_id: int, lat: float | None
         raise UploadError(400, "Give both latitude and longitude")
     elif not gps.valid(lat, lng):
         raise UploadError(400, "Coordinates out of range")
+    road = resolve_road(conn, road_id, lat, lng)
 
     # Rotate as the phone intended, so boxes line up with how people see the photo
     img = ImageOps.exif_transpose(img).convert("RGB")
@@ -64,7 +62,7 @@ def process_image(conn: Connection, data: bytes, road_id: int, lat: float | None
     img.save(buf, "JPEG", quality=90)
     path = f"uploads/{uuid.uuid4().hex}.jpg"
     upload_id = uploads.insert(conn, storage_path=path, media_type="image", lat=lat, lng=lng,
-                               gps_source=gps_source, road_id=road_id, image_width=img.width,
+                               gps_source=gps_source, road_id=road["road_id"], image_width=img.width,
                                image_height=img.height)
 
     saved = save_detections(conn, upload_id, road, lat, lng, detections, img.width, img.height, cfg)
@@ -73,20 +71,31 @@ def process_image(conn: Connection, data: bytes, road_id: int, lat: float | None
             "image_width": img.width, "image_height": img.height, "potholes": saved}
 
 
-def process_video(conn: Connection, data: bytes, road_id: int, lat: float | None, lng: float | None,
+def resolve_road(conn: Connection, road_id: int | None, lat: float, lng: float) -> dict:
+    """The road picked from the list, or else the real road at this location from OpenStreetMap."""
+    if road_id is not None:
+        road = roads.get(conn, road_id)
+        if road is None:
+            raise UploadError(400, "Pick a road from the list")
+        return road
+    try:
+        return osm_roads.road_at(conn, lat, lng)
+    except osm_roads.RoadLookupError as exc:
+        raise UploadError(400, f"{exc}. Pick the road from the list instead.")
+
+
+def process_video(conn: Connection, data: bytes, road_id: int | None, lat: float | None, lng: float | None,
                   gps_source: str, suffix: str) -> dict:
     """TRD 4.8: one coordinate for the whole clip (videos carry no usable EXIF GPS)."""
     s = get_settings()
     bad_file = f"Use an MP4, MOV or WebM video under {s.max_video_mb} MB"
     if len(data) > s.max_video_mb * 1024 * 1024:
         raise UploadError(413, bad_file)
-    road = roads.get(conn, road_id)
-    if road is None:
-        raise UploadError(400, "Pick a road from the list")
     if lat is None or lng is None:
         raise UploadError(400, "Videos need a location: type coordinates or click the map")
     if not gps.valid(lat, lng):
         raise UploadError(400, "Coordinates out of range")
+    road = resolve_road(conn, road_id, lat, lng)
 
     cfg = config.get_all(conn)
     ext = suffix.lower() if suffix.lower() in VIDEO_TYPES else ".mp4"  # never the user's filename, only a known suffix
@@ -110,7 +119,7 @@ def process_video(conn: Connection, data: bytes, road_id: int, lat: float | None
     width, height = frames[0][2].size
     stored_name = f"uploads/{uuid.uuid4().hex}{ext}"
     upload_id = uploads.insert(conn, storage_path=stored_name, media_type="video", lat=lat, lng=lng,
-                               gps_source=gps_source, road_id=road_id, image_width=width, image_height=height)
+                               gps_source=gps_source, road_id=road["road_id"], image_width=width, image_height=height)
     frame_images = {index: img for index, _, img in frames}
     for index in sorted({d["frame_index"] for d in kept}):  # only frames that contain a kept pothole are stored
         buf = io.BytesIO()

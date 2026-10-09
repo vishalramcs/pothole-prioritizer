@@ -1,4 +1,5 @@
-"""Location factor: how close a pothole is to a hospital, clinic, school or fire station.
+"""Location factor: how close a pothole is to an important building (OpenStreetMap): hospitals, clinics,
+fire stations, schools, colleges, universities, police stations, bus stations, railway stations.
 
 facility_score = exp(-distance_m / FACILITY_DECAY_M) to the nearest one: 1 next door, 0.37 at 500 m, ~0 beyond 2.5 km.
 Facilities come from OpenStreetMap (scripts/import_facilities.py), so coverage is only as good as OSM's.
@@ -10,7 +11,8 @@ from sqlalchemy import Connection
 from app.repositories import facilities
 from app.services import geo
 
-KINDS = ("hospital", "clinic", "school", "fire_station")
+AMENITIES = ("hospital", "clinic", "fire_station", "school", "college", "university", "police", "bus_station")
+KINDS = AMENITIES + ("railway_station",)  # railway stations are tagged railway=station, not amenity
 NONE = {"facility_score": 0.0, "nearest_facility": None, "nearest_facility_m": None}
 
 
@@ -32,10 +34,12 @@ def parse_overpass(data: dict) -> list[dict]:
     """Overpass JSON (nodes, and ways/relations with `out center`) -> facility rows."""
     rows = []
     for el in data.get("elements", []):
-        kind = el.get("tags", {}).get("amenity")
+        tags = el.get("tags", {})
+        kind = tags.get("amenity") if tags.get("amenity") in AMENITIES else (
+            "railway_station" if tags.get("railway") == "station" else None)
         lat = el.get("lat", el.get("center", {}).get("lat"))
         lng = el.get("lon", el.get("center", {}).get("lon"))
         if kind in KINDS and lat is not None and lng is not None:
-            rows.append({"osm_id": f"{el['type']}/{el['id']}", "name": el["tags"].get("name"),
+            rows.append({"osm_id": f"{el['type']}/{el['id']}", "name": tags.get("name"),
                          "kind": kind, "lat": lat, "lng": lng})
     return rows
