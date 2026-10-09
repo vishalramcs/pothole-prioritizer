@@ -97,7 +97,9 @@ out geom;"""
     for url in OVERPASS:
         try:
             print("Querying", url)
-            with urllib.request.urlopen(urllib.request.Request(url, data=data), timeout=180) as r:
+            # overpass-api.de rejects the default Python User-Agent with HTTP 406
+            req = urllib.request.Request(url, data=data, headers={"User-Agent": "SRPPS hackathon ml_pipeline"})
+            with urllib.request.urlopen(req, timeout=180) as r:
                 js = json.load(r)
             if cache:
                 json.dump(js, open(cache, "w"))
