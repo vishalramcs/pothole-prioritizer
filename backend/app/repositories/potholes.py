@@ -48,6 +48,16 @@ def near(conn: Connection, lat: float, lng: float, radius_m: float) -> list[dict
     return [dict(r) for r in rows.mappings()]
 
 
+def open_rows(conn: Connection) -> list[dict]:
+    """Pending, Scheduled and In Progress potholes, highest priority first, locked for the zone/plan rebuild."""
+    sql = _SELECT + " WHERE p.status <> 'Repaired' ORDER BY p.priority_score DESC, p.pothole_id FOR UPDATE OF p"
+    return [dict(r) for r in conn.execute(text(sql)).mappings()]
+
+
+def set_zone(conn: Connection, pothole_ids: list[int], zone_id: int) -> None:
+    conn.execute(text("UPDATE potholes SET zone_id = :z WHERE pothole_id = ANY(:ids)"), {"z": zone_id, "ids": pothole_ids})
+
+
 def update(conn: Connection, pothole_id: int, **fields) -> None:
     sets = ", ".join(f"{c} = :{c}" for c in fields)
     conn.execute(text(f"UPDATE potholes SET {sets} WHERE pothole_id = :pothole_id"), {**fields, "pothole_id": pothole_id})

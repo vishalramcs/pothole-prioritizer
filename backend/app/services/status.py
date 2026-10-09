@@ -34,6 +34,14 @@ def change_status(conn: Connection, pothole_id: int, new: str) -> None:
         repair_orders.complete_for_pothole(conn, pothole_id)
 
 
+def unschedule_all(conn: Connection) -> None:
+    """Planner only (TRD 4.7 step 1): every Scheduled pothole back to Pending, its order deleted.
+    In Progress potholes keep their orders."""
+    for p in potholes.list_filtered(conn, status="Scheduled"):
+        repair_orders.delete_for_pothole(conn, p["pothole_id"])
+        potholes.update(conn, p["pothole_id"], status="Pending")
+
+
 def schedule(conn: Connection, pothole_id: int, crew_id: int, sequence_no: int, planned_date: date) -> None:
     """Planner only: Pending -> Scheduled with its repair order."""
     p = potholes.get(conn, pothole_id, for_update=True)
