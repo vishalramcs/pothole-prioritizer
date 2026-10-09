@@ -9,8 +9,17 @@ import { apiFetch, BASE_URL } from "@/lib/api";
 import type { Road, SeverityLevel, UploadResult } from "@/lib/types";
 
 const MAX_MB = 10;
-const BAD_FILE = `Use a JPG or PNG under ${MAX_MB} MB`;
+const MAX_VIDEO_MB = 50;
+const IMAGE_TYPES = ["image/jpeg", "image/png"];
+const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
+
+function fileError(f: File): string | null {
+  if (IMAGE_TYPES.includes(f.type)) return f.size > MAX_MB * 1024 * 1024 ? `Use a JPG or PNG under ${MAX_MB} MB` : null;
+  if (VIDEO_TYPES.includes(f.type)) return f.size > MAX_VIDEO_MB * 1024 * 1024 ? `Use a video under ${MAX_VIDEO_MB} MB` : null;
+  return `Use a JPG or PNG under ${MAX_MB} MB, or an MP4, MOV or WebM video under ${MAX_VIDEO_MB} MB`;
+}
 const SEVERITY_COLOR: Record<SeverityLevel, string> = { High: "#c62828", Medium: "#9a4a00", Low: "#2e7d32" };
+const MATCH_TEXT = { new: "New", repeat: "Yes, same pothole (seen again)", recurrence: "Yes, came back after repair" };
 
 export default function UploadPage() {
   const [roads, setRoads] = useState<Road[]>([]);
@@ -33,18 +42,20 @@ export default function UploadPage() {
     setFile(f);
     setPreview(f ? URL.createObjectURL(f) : null);
     setResult(null);
-    setError(f && (!["image/jpeg", "image/png"].includes(f.type) || f.size > MAX_MB * 1024 * 1024) ? BAD_FILE : null);
+    setError(f ? fileError(f) : null);
   }
 
+  const isVideo = !!file && VIDEO_TYPES.includes(file.type);
   const latNum = Number(lat), lngNum = Number(lng);
   const coordError =
     (lat === "") !== (lng === "") ? "Give both latitude and longitude, or leave both blank"
+    : isVideo && lat === "" ? "Videos need a location: type it or click the map"
     : lat !== "" && !(Math.abs(latNum) <= 90 && Math.abs(lngNum) <= 180) ? "Latitude must be -90 to 90, longitude -180 to 180"
     : null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file || coordError || !roadId) return;
+    if (!file || fileError(file) || coordError || !roadId) return;
     const form = new FormData();
     form.append("file", file);
     form.append("road_id", roadId);
@@ -67,14 +78,17 @@ export default function UploadPage() {
   const field = "mt-1 block min-h-11 w-full rounded border border-muted bg-surface px-3 py-2";
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
-      <h1 className="text-[28px] font-semibold">Upload a road photo</h1>
+      <h1 className="text-[28px] font-semibold">Upload a road photo or video</h1>
 
       <form onSubmit={submit} className="flex flex-col gap-4 rounded-lg bg-surface p-4 shadow" noValidate>
-        <label className="font-medium">Photo (JPG or PNG, up to {MAX_MB} MB)
-          <input type="file" accept="image/jpeg,image/png" className={field} onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
+        <label className="font-medium">Photo (JPG or PNG, up to {MAX_MB} MB) or short video (up to {MAX_VIDEO_MB} MB)
+          <input type="file" accept={[...IMAGE_TYPES, ...VIDEO_TYPES].join(",")} className={field}
+            onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
         </label>
-        {/* eslint-disable-next-line @next/next/no-img-element -- local preview from an object URL */}
-        {preview && !result && <img src={preview} alt="Selected photo preview" className="max-h-72 rounded object-contain" />}
+        {preview && !result && (isVideo
+          ? <video src={preview} controls muted className="max-h-72 rounded" aria-label="Selected video preview" />
+          // eslint-disable-next-line @next/next/no-img-element -- local preview from an object URL
+          : <img src={preview} alt="Selected photo preview" className="max-h-72 rounded object-contain" />)}
 
         <label className="font-medium">Road
           <select required className={field} value={roadId} onChange={(e) => setRoadId(e.target.value)}>
@@ -85,7 +99,9 @@ export default function UploadPage() {
 
         <fieldset className="flex flex-col gap-2">
           <legend className="font-medium">Location</legend>
-          <p className="text-xs text-muted">Leave blank to use the GPS stored in the photo, or type it, or click the map.</p>
+          <p className="text-xs text-muted">
+            {isVideo ? "Type the clip's location or click the map." : "Leave blank to use the GPS stored in the photo, or type it, or click the map."}
+          </p>
           <div className="grid grid-cols-2 gap-2">
             <label className="text-xs text-muted">Latitude
               <input inputMode="decimal" className={field} value={lat} aria-invalid={!!coordError}
@@ -105,9 +121,13 @@ export default function UploadPage() {
 
         <button type="submit" disabled={busy || !file || !roadId || !!coordError}
           className="min-h-11 rounded bg-brand px-4 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-50">
-          {busy ? "Analyzing image…" : "Detect potholes"}
+          {busy ? (isVideo ? "Analyzing video…" : "Analyzing image…") : "Detect potholes"}
         </button>
-        {busy && <p role="status" className="text-muted">Analyzing image… this takes a few seconds on a laptop.</p>}
+        {busy && (
+          <p role="status" className="text-muted">
+            {isVideo ? "Analyzing video… one frame per second, so this takes a while on a laptop." : "Analyzing image… this takes a few seconds on a laptop."}
+          </p>
+        )}
         {error && <p role="alert" className="text-critical">{error}</p>}
       </form>
 
@@ -116,19 +136,39 @@ export default function UploadPage() {
           <h2 className="text-xl font-semibold">
             {result.potholes.length === 0 ? "No potholes detected" : `${result.potholes.length} pothole(s) found`}
           </h2>
-          <BoxedImage
-            src={`${BASE_URL}/uploads/${result.upload_id}/image`}
-            width={result.image_width}
-            height={result.image_height}
-            alt="Uploaded photo with each detected pothole outlined and numbered"
-            boxes={result.potholes.map((p, i) => ({
-              x: p.bbox_x!, y: p.bbox_y!, w: p.bbox_w!, h: p.bbox_h!, label: String(i + 1), color: SEVERITY_COLOR[p.severity_level],
-            }))}
-          />
+          {result.media_type === "video" ? (
+            <>
+              <p className="text-sm text-muted">{result.frames_sampled} frames checked; the same pothole in consecutive frames counts once.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {result.potholes.map((p, i) => (
+                  <figure key={p.pothole_id}>
+                    <BoxedImage
+                      src={`${BASE_URL}/uploads/${result.upload_id}/frames/${p.frame_index}`}
+                      width={result.image_width}
+                      height={result.image_height}
+                      alt={`Video frame at ${p.frame_time_s?.toFixed(0)} s with pothole ${i + 1} outlined`}
+                      boxes={[{ x: p.bbox_x!, y: p.bbox_y!, w: p.bbox_w!, h: p.bbox_h!, label: String(i + 1), color: SEVERITY_COLOR[p.severity_level] }]}
+                    />
+                    <figcaption className="text-xs text-muted">#{i + 1} at {p.frame_time_s?.toFixed(1)} s</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </>
+          ) : (
+            <BoxedImage
+              src={`${BASE_URL}/uploads/${result.upload_id}/image`}
+              width={result.image_width}
+              height={result.image_height}
+              alt="Uploaded photo with each detected pothole outlined and numbered"
+              boxes={result.potholes.map((p, i) => ({
+                x: p.bbox_x!, y: p.bbox_y!, w: p.bbox_w!, h: p.bbox_h!, label: String(i + 1), color: SEVERITY_COLOR[p.severity_level],
+              }))}
+            />
+          )}
           {result.potholes.length > 0 && (
             <table className="w-full text-left text-sm">
               <thead className="text-xs text-muted">
-                <tr><th className="py-1">#</th><th>Relative severity</th><th>Priority</th><th>Confidence</th></tr>
+                <tr><th className="py-1">#</th><th>Relative severity</th><th>Priority</th><th>Confidence</th><th>Seen before?</th></tr>
               </thead>
               <tbody>
                 {result.potholes.map((p, i) => (
@@ -137,6 +177,7 @@ export default function UploadPage() {
                     <td><SeverityChip level={p.severity_level} /></td>
                     <td><BandChip band={p.priority_band} /> {p.priority_score.toFixed(2)}</td>
                     <td>{(p.confidence ?? 0).toFixed(2)}</td>
+                    <td>{MATCH_TEXT[p.match]}</td>
                   </tr>
                 ))}
               </tbody>
@@ -144,7 +185,7 @@ export default function UploadPage() {
           )}
           <p className="text-xs text-muted">
             Location {result.lat.toFixed(5)}, {result.lng.toFixed(5)} ({result.gps_source === "exif" ? "from photo GPS" : result.gps_source === "map_click" ? "map click" : "typed"}).
-            All potholes in one photo share this point. {THRESHOLD_NOTE}
+            All potholes in one {result.media_type === "video" ? "clip" : "photo"} share this point. {THRESHOLD_NOTE}
           </p>
           <div className="flex gap-3">
             <Link href="/" className="min-h-11 rounded bg-brand px-4 py-2 font-semibold text-white">View on map</Link>

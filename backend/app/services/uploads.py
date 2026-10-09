@@ -1,16 +1,19 @@
 """Image upload pipeline (TRD 5, POST /uploads): validate, locate, detect, store, score, save."""
 import io
+import tempfile
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from PIL import Image, ImageOps
 from sqlalchemy import Connection
 
 from app.core.config import get_settings
 from app.repositories import config, potholes, roads, uploads
-from app.services import detector, gps, matching, priority, severity, storage
+from app.services import detector, gps, matching, priority, severity, storage, video
 
 FORMATS = {"JPEG", "PNG"}
+VIDEO_TYPES = {".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"}
 MAX_SIDE = 4000  # TRD 6: longest side; bigger images are shrunk before inference
 
 
@@ -68,6 +71,61 @@ def process_image(conn: Connection, data: bytes, road_id: int, lat: float | None
     storage.save(path, buf.getvalue(), "image/jpeg")  # after the inserts: if storing fails, they roll back
     return {"upload_id": upload_id, "lat": lat, "lng": lng, "gps_source": gps_source,
             "image_width": img.width, "image_height": img.height, "potholes": saved}
+
+
+def process_video(conn: Connection, data: bytes, road_id: int, lat: float | None, lng: float | None,
+                  gps_source: str, suffix: str) -> dict:
+    """TRD 4.8: one coordinate for the whole clip (videos carry no usable EXIF GPS)."""
+    s = get_settings()
+    bad_file = f"Use an MP4, MOV or WebM video under {s.max_video_mb} MB"
+    if len(data) > s.max_video_mb * 1024 * 1024:
+        raise UploadError(413, bad_file)
+    road = roads.get(conn, road_id)
+    if road is None:
+        raise UploadError(400, "Pick a road from the list")
+    if lat is None or lng is None:
+        raise UploadError(400, "Videos need a location: type coordinates or click the map")
+    if not gps.valid(lat, lng):
+        raise UploadError(400, "Coordinates out of range")
+
+    cfg = config.get_all(conn)
+    ext = suffix.lower() if suffix.lower() in VIDEO_TYPES else ".mp4"  # never the user's filename, only a known suffix
+    # OpenCV only reads videos from disk; the temp file is ours and deleted right after
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / f"clip{ext}"
+        path.write_bytes(data)
+        try:
+            frames = list(video.sample_frames(str(path), cfg["FRAME_INTERVAL_S"], MAX_SIDE))
+        except ValueError:
+            raise UploadError(400, bad_file)
+    try:
+        per_frame = []
+        for index, time_s, img in frames:
+            dets = detector.detect(img, cfg["MIN_CONFIDENCE"])
+            per_frame.append([{**d, "frame_index": index, "frame_time_s": time_s} for d in dets])
+    except Exception as exc:
+        raise UploadError(422, "Detection failed, try again") from exc
+    kept = video.merge_tracks(per_frame, cfg["VIDEO_IOU_MIN"])
+
+    width, height = frames[0][2].size
+    stored_name = f"uploads/{uuid.uuid4().hex}{ext}"
+    upload_id = uploads.insert(conn, storage_path=stored_name, media_type="video", lat=lat, lng=lng,
+                               gps_source=gps_source, road_id=road_id, image_width=width, image_height=height)
+    frame_images = {index: img for index, _, img in frames}
+    for index in sorted({d["frame_index"] for d in kept}):  # only frames that contain a kept pothole are stored
+        buf = io.BytesIO()
+        frame_images[index].save(buf, "JPEG", quality=90)
+        storage.save(frame_path(upload_id, index), buf.getvalue(), "image/jpeg")
+    for d in kept:
+        d["frame_storage_path"] = frame_path(upload_id, d["frame_index"])
+    saved = save_detections(conn, upload_id, road, lat, lng, kept, width, height, cfg)
+    storage.save(stored_name, data, VIDEO_TYPES[ext])
+    return {"upload_id": upload_id, "media_type": "video", "lat": lat, "lng": lng, "gps_source": gps_source,
+            "image_width": width, "image_height": height, "frames_sampled": len(frames), "potholes": saved}
+
+
+def frame_path(upload_id: int, frame_index: int) -> str:
+    return f"uploads/{upload_id}/frame_{frame_index}.jpg"  # TRD 4.8 layout
 
 
 # The detection's own evidence: replaces a matched pothole's evidence when this sighting is more severe

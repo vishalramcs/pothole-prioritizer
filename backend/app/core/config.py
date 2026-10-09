@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     model_path: str = "ml/weights/pothole.pt"
     max_upload_mb: int = 10
+    max_video_mb: int = 50
 
     @property
     def cors_origin_list(self) -> list[str]:

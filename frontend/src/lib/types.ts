@@ -60,14 +60,22 @@ export interface Road {
   data_source: "mock" | "real";
 }
 
+export interface UploadedPothole extends Pothole {
+  match: "new" | "repeat" | "recurrence";
+  frame_index: number | null;
+  frame_time_s: number | null;
+}
+
 export interface UploadResult {
   upload_id: number;
+  media_type?: "video";
+  frames_sampled?: number;
   lat: number;
   lng: number;
   gps_source: "exif" | "manual" | "map_click";
   image_width: number;
   image_height: number;
-  potholes: Pothole[];
+  potholes: UploadedPothole[];
 }
 
 export interface RepairRow {
