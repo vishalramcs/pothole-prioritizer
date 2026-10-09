@@ -27,6 +27,17 @@ then only rows with `road_match_ok == 1` are used.
 Rows: 241 built, **145 kept** (`road_match_ok == 1`: random point within 30 m of a mapped road). Split: 93 train, 31 val, 21 test.
 Road classes kept: 115 residential, 18 town, 7 arterial, 5 highway (very few highway rows).
 
+## Sources checked and rejected
+
+- **Outerview Global Potholes Dataset** (Hugging Face, CC BY 4.0; imagery from Mapillary). Attractive because every
+  photo has real GPS (553 in Mumbai; `prepare_outerview.py` fetches them). Rejected: its "pothole" labels come from
+  Outerview's own AI. Running our detector at confidence 0.4 kept 136 of 553 (`detect_boxes.py`), and a visual check
+  of 12 random kept photos found only about 3 plausible potholes (the rest: dirt, rubble, litter, paving, a manhole,
+  a grate); 12 random rejected photos showed none. Training on it would mean training on mostly wrong labels.
+- **Roboflow full export** of "Potholes Detection" (13,767 images) and **Kaggle** sets: need a login or API key, so
+  not downloaded automatically. Manual route: download the YOLOv8 export from
+  universe.roboflow.com/project-ssayl/potholes-detection-d4rma in a browser and unzip it into `raw/ryukijano`.
+
 Consequences:
 - A model trained on `priority_score` learns the `add_priority` formula, and severity heads learn the box formula. Good test scores mean the model reproduces those formulas, not that it knows real-world priority.
 - "Generalises to unseen areas" here means: it scores context from grid cells it never saw. The photos themselves are not tied to those areas.

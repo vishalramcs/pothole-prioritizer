@@ -7,6 +7,7 @@ on the hand-drawn boxes:
     depth term = not available
     severity   = (0.5 * area + 0.2 * count) / 0.7     # weights 0.5 / 0.2 / 0.3, renormalised without depth
 """
+import argparse
 import csv
 from pathlib import Path
 
@@ -27,16 +28,20 @@ def weak_severity(boxes: list[tuple[float, float]]) -> dict:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--labels", default="pothole_labels")
+    ap.add_argument("--out", default="cnn_severity.csv")
+    a = ap.parse_args()
     rows = []
-    for lab in sorted((HERE / "pothole_labels").glob("*.txt")):
+    for lab in sorted((HERE / a.labels).glob("*.txt")):
         boxes = [(float(p[3]), float(p[4])) for p in (line.split() for line in lab.read_text().splitlines()) if len(p) == 5]
         rows.append({"image_file": lab.stem + ".jpg", **weak_severity(boxes)})
-    with open(HERE / "cnn_severity.csv", "w", newline="") as f:
+    with open(HERE / a.out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["image_file", "severity", "pothole_area_ratio", "pothole_count"])
         w.writeheader()
         w.writerows(rows)
     sev = sorted(r["severity"] for r in rows)
-    print(f"{len(rows)} images -> cnn_severity.csv | severity min {sev[0]} median {sev[len(sev) // 2]} max {sev[-1]}")
+    print(f"{len(rows)} images -> {a.out} | severity min {sev[0]} median {sev[len(sev) // 2]} max {sev[-1]}")
     for lo, hi, name in [(0, 0.33, "low"), (0.33, 0.66, "medium"), (0.66, 1.01, "high")]:
         print(f"  {name:6} {sum(lo <= s < hi for s in sev)}")
 

@@ -34,3 +34,6 @@ ml_pipeline/pothole_labels/
 ml_pipeline/data_real/
 ml_pipeline/models/
 ml_pipeline/outputs/
+ml_pipeline/pothole_images_mumbai/
+ml_pipeline/pothole_labels_mumbai/
+ml_pipeline/data_real_mumbai/
