@@ -10,7 +10,7 @@ from sqlalchemy import Connection
 
 from app.core.config import get_settings
 from app.repositories import config, potholes, roads, uploads
-from app.services import detector, gps, matching, priority, severity, storage, video
+from app.services import detector, facilities, gps, matching, priority, severity, storage, video
 
 FORMATS = {"JPEG", "PNG"}
 VIDEO_TYPES = {".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm"}
@@ -149,6 +149,7 @@ def save_detections(conn: Connection, upload_id: int, road: dict, lat: float, ln
 
     saved = []
     now = datetime.now(timezone.utc)
+    place = facilities.proximity(conn, lat, lng, cfg["FACILITY_DECAY_M"])  # one point per upload
     for d, existing, kind in matching.match(conn, detections, lat, lng, cfg["DEDUP_RADIUS_M"]):
         if kind == "repeat":
             row = {**existing, "detection_count": existing["detection_count"] + 1, "last_detected_at": now}
@@ -157,7 +158,7 @@ def save_detections(conn: Connection, upload_id: int, road: dict, lat: float, ln
                 row.update({k: d[k] for k in EVIDENCE})
             changed = ("detection_count", "last_detected_at", *EVIDENCE)
         else:
-            row = {**{k: d[k] for k in EVIDENCE}, "road_id": road["road_id"], "lat": lat, "lng": lng,
+            row = {**{k: d[k] for k in EVIDENCE}, **place, "road_id": road["road_id"], "lat": lat, "lng": lng,
                    "detection_count": 1, "recurrence_count": existing["recurrence_count"] + 1 if existing else 0}
             changed = tuple(row)
         scored = priority.for_pothole({**row, **{k: road[k] for k in ("traffic_score", "importance_score")}}, cfg)

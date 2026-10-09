@@ -2,13 +2,14 @@
 from sqlalchemy import Connection
 
 from app.repositories import config, potholes
+from app.services import facilities
 
-WEIGHTS = ("W_SEVERITY", "W_TRAFFIC", "W_IMPORTANCE", "W_REPEAT")
+WEIGHTS = ("W_SEVERITY", "W_TRAFFIC", "W_IMPORTANCE", "W_REPEAT", "W_FACILITY")
 SCORE_FIELDS = ("priority_score", "priority_band", "safety_override")
 
 
 def check_weights(cfg: dict[str, float]) -> None:
-    """Raise ValueError unless the four weights sum to 1.0 (tolerance 0.001)."""
+    """Raise ValueError unless the five weights sum to 1.0 (tolerance 0.001)."""
     total = sum(cfg[w] for w in WEIGHTS)
     if abs(total - 1.0) > 0.001:
         raise ValueError(f"Weights must sum to 1.0, got {total:.3f}")
@@ -18,7 +19,7 @@ def repeat_score(detection_count: int, recurrence_count: int, cfg: dict[str, flo
     return min(((detection_count - 1) + recurrence_count) / cfg["REPEAT_CAP"], 1.0)
 
 
-def priority(severity_score: float, traffic: float, importance: float, repeat: float,
+def priority(severity_score: float, traffic: float, importance: float, repeat: float, facility: float,
              cfg: dict[str, float]) -> dict:
     """Score, band, safety override flag, and the per-factor breakdown shown in the detail panel."""
     parts = {
@@ -26,6 +27,7 @@ def priority(severity_score: float, traffic: float, importance: float, repeat: f
         "traffic": (traffic, cfg["W_TRAFFIC"]),
         "importance": (importance, cfg["W_IMPORTANCE"]),
         "repeat": (repeat, cfg["W_REPEAT"]),
+        "facility": (facility, cfg["W_FACILITY"]),
     }
     score = min(sum(v * w for v, w in parts.values()), 1.0)  # min(): float rounding can give 1.0000000002
     band = "Critical" if score >= cfg["BAND_CRITICAL"] else "Moderate" if score >= cfg["BAND_MODERATE"] else "Low"
@@ -46,14 +48,16 @@ def for_pothole(p: dict, cfg: dict[str, float]) -> dict:
         p.get("traffic_score") or 0.0,  # no road recorded: score it like the quietest road
         p.get("importance_score") or 0.0,
         repeat_score(p["detection_count"], p["recurrence_count"], cfg),
+        p.get("facility_score") or 0.0,
         cfg,
     )
 
 
-def rescore_all(conn: Connection) -> None:
-    """Recompute stored priorities after a road or config edit."""
+def rescore_all(conn: Connection, refresh_facilities: bool = False) -> None:
+    """Recompute stored priorities after a road or config edit (and nearest facilities after an import)."""
     cfg = config.get_all(conn)
     check_weights(cfg)
     for p in potholes.list_filtered(conn):
-        scored = for_pothole(p, cfg)
-        potholes.update(conn, p["pothole_id"], **{k: scored[k] for k in SCORE_FIELDS})
+        fields = facilities.proximity(conn, p["lat"], p["lng"], cfg["FACILITY_DECAY_M"]) if refresh_facilities else {}
+        scored = for_pothole({**p, **fields}, cfg)
+        potholes.update(conn, p["pothole_id"], **fields, **{k: scored[k] for k in SCORE_FIELDS})

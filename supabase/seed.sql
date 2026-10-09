@@ -3,9 +3,11 @@
 
 INSERT INTO public.config (key, value) VALUES
   ('W_SEVERITY',             '0.40'),
-  ('W_TRAFFIC',              '0.25'),
-  ('W_IMPORTANCE',           '0.20'),
-  ('W_REPEAT',               '0.15'),
+  ('W_TRAFFIC',              '0.20'),
+  ('W_IMPORTANCE',           '0.15'),
+  ('W_REPEAT',               '0.10'),
+  ('W_FACILITY',             '0.15'),
+  ('FACILITY_DECAY_M',       '500'),
   ('MIN_CONFIDENCE',         '0.40'),
   ('AREA_RATIO_MAX',         '0.10'),
   ('SEV_MEDIUM_MIN',         '0.30'),

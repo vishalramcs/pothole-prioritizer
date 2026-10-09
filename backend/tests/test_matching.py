@@ -46,7 +46,7 @@ def test_repeat_raises_priority(send, conn):
     p = send([box(100, 100)])[0]
     again = send([box(100, 100)])[0]
     assert again["pothole_id"] == p["pothole_id"]
-    assert again["priority_score"] == pytest.approx(p["priority_score"] + 0.15 / 3)  # repeat 1/3 x W_REPEAT
+    assert again["priority_score"] == pytest.approx(p["priority_score"] + 0.10 / 3)  # repeat 1/3 x W_REPEAT
 
 
 def test_more_severe_sighting_replaces_evidence(send, conn):
