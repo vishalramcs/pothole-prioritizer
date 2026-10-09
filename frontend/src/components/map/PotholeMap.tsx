@@ -4,8 +4,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useRef } from "react";
 import { Circle, MapContainer, Marker, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
-import type { Band, Pothole } from "@/lib/types";
-import type { Zone } from "./zoneTypes";
+import type { Band, Pothole, Zone } from "@/lib/types";
 
 const COLOR: Record<Band, string> = { Critical: "#c62828", Moderate: "#ef8f00", Low: "#2e7d32" };
 export const DEFAULT_CENTER: [number, number] = [12.9716, 77.5946];

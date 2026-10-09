@@ -86,3 +86,38 @@ export interface RepairRow {
   planned_date: string | null;
   completed_at: string | null;
 }
+
+export interface Zone {
+  zone_id: number;
+  centroid_lat: number;
+  centroid_lng: number;
+  pothole_count: number;
+  avg_priority: number;
+  radius_m: number;
+  created_at: string;
+}
+
+export interface Crew {
+  crew_id: number;
+  name: string;
+  capacity_per_day: number;
+}
+
+export interface PlannedStop {
+  pothole_id: number;
+  crew_id: number;
+  crew_name: string;
+  sequence_no: number;
+  planned_date: string;
+  zone_id: number | null;
+  road_name: string | null;
+  priority_score: number;
+  priority_band: Band;
+}
+
+export interface PlanResult {
+  message: string;
+  scheduled: PlannedStop[];
+  unscheduled_count: number;
+  unscheduled_ids: number[];
+}
