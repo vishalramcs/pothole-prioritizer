@@ -1,6 +1,10 @@
 """Weighted priority score, band, optional safety override (TRD 4.5)."""
+from sqlalchemy import Connection
+
+from app.repositories import config, potholes
 
 WEIGHTS = ("W_SEVERITY", "W_TRAFFIC", "W_IMPORTANCE", "W_REPEAT")
+SCORE_FIELDS = ("priority_score", "priority_band", "safety_override")
 
 
 def check_weights(cfg: dict[str, float]) -> None:
@@ -33,3 +37,23 @@ def priority(severity_score: float, traffic: float, importance: float, repeat: f
         "safety_override": override,
         "breakdown": {k: {"value": v, "weight": w, "contribution": v * w} for k, (v, w) in parts.items()},
     }
+
+
+def for_pothole(p: dict, cfg: dict[str, float]) -> dict:
+    """priority() for a pothole row that carries its road's traffic_score and importance_score."""
+    return priority(
+        p["severity_score"],
+        p.get("traffic_score") or 0.0,  # no road recorded: score it like the quietest road
+        p.get("importance_score") or 0.0,
+        repeat_score(p["detection_count"], p["recurrence_count"], cfg),
+        cfg,
+    )
+
+
+def rescore_all(conn: Connection) -> None:
+    """Recompute stored priorities after a road or config edit."""
+    cfg = config.get_all(conn)
+    check_weights(cfg)
+    for p in potholes.list_filtered(conn):
+        scored = for_pothole(p, cfg)
+        potholes.update(conn, p["pothole_id"], **{k: scored[k] for k in SCORE_FIELDS})
