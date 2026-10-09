@@ -13,7 +13,7 @@ anything about real-world urgency that the formulas do not encode, and the photo
 
 | Step | Script | Output |
 |---|---|---|
-| 1. Images | `prepare_images.py` | `pothole_images/`, `pothole_labels/`: 241 unique photos with YOLO boxes (Roboflow "Potholes Detection", CC BY 4.0, via Hugging Face `Ryukijano/Pothole-detection-Yolov8`; flipped duplicates removed) |
+| 1. Images | `prepare_images.py`, `prepare_rdd2022.py` | `pothole_images/`, `pothole_labels/`: **1,041 photos with hand-drawn pothole boxes** from two CC BY 4.0 sources: 241 from Roboflow "Potholes Detection" (via Hugging Face `Ryukijano/Pothole-detection-Yolov8`, flipped duplicates removed) and a seeded 800 of the 1,530 RDD2022 India images that contain a pothole (class D40) |
 | 2. Severity | `severity.py` | `cnn_severity.csv`: **weak labels** from the boxes, `(0.5*clip(area/0.3) + 0.2*clip(count/8)) / 0.7` (no depth data) |
 | 3. Context | `build_real_dataset.py` | `data_real/`: OSM road class, facilities and bus stops for random points in the Coimbatore box; estimated traffic; synthetic risk/complaint columns; rule-based priority; spatial split |
 | 4. Model | `hybrid.py` | `models/hybrid_best.pt`, `outputs/train_curve.*`: ResNet18 image branch (ImageNet weights, only layer4 trained) + tabular MLP (road-class embedding + 13 context features) -> priority head; auxiliary severity head on the image branch. Loss MSE(priority) + 0.5 MSE(severity) + 0.3 margin-ranking loss |
@@ -27,78 +27,82 @@ ultralytics huggingface_hub shap folium` (CPU is enough):
 ```bash
 python -c "from huggingface_hub import snapshot_download as s; s('Ryukijano/Pothole-detection-Yolov8', repo_type='dataset', local_dir='raw/ryukijano')"
 python prepare_images.py
+python prepare_rdd2022.py # downloads only India.zip (0.53 GB) out of the 13 GB RDD2022 archive
 python severity.py
 python build_real_dataset.py --images pothole_images --bbox 10.95,76.90,11.10,77.05 --fill-missing-synthetic --severity cnn_severity.csv --out data_real
-python hybrid.py          # ~2 min on an 8-core laptop CPU (early stopping)
+python hybrid.py          # ~7 min on an 8-core laptop CPU (early stopping)
 python evaluate.py        # also needs ../backend/ml/weights/pothole.pt for the detector mAP
 python schedule.py        # --budget 200000 --crews 2 --hours 8
 python explain.py
 pytest                    # 19 tests
 ```
-Seeds are fixed (42). Step 3 needs the OpenStreetMap Overpass API; its servers are often busy (we got 406, 500
+`python build_real_dataset.py ... --osm-json data_real/osm_cache.json` reuses a saved OSM download. Seeds are fixed (42). Step 3 needs the OpenStreetMap Overpass API; its servers are often busy (we got 406, 500
 and 504 before a retry worked). Data folders are git-ignored; scripts rebuild them.
 
-## Results (145 rows on a mapped road: 93 train, 31 val, 21 test; test = grid cells never seen in training)
+## Results (1,041 images; 597 on a mapped road: 406 train, 102 val, 89 test; test = grid cells never seen in training)
+
+Training: early stop at epoch 22, best validation loss 0.0425 (train 0.003). Test priority MAE 0.079, RMSE 0.122.
 
 **Does the model reproduce the reference ranking on unseen areas?**
 
 | Ranking by | Spearman, train | Spearman, test | NDCG@10, test |
 |---|---|---|---|
-| Model (hybrid net) | 0.989 | 0.743 | 0.856 |
-| Severity only | 0.885 | **0.857** | **0.910** |
-| First come, first served | 0.025 | -0.277 | 0.550 |
-| Random (seed 42) | 0.105 | -0.255 | 0.467 |
+| Model (hybrid net) | 0.952 | 0.679 | 0.630 |
+| Severity only | 0.958 | **0.951** | **0.776** |
+| First come, first served | 0.099 | 0.327 | 0.374 |
+| Random (seed 42) | 0.006 | -0.070 | 0.394 |
 
-Test priority MAE 0.110, RMSE 0.151. The model fits the training areas almost perfectly but, on unseen areas,
-**ranks worse than simply sorting by severity**. Reason: in `add_priority` severity multiplies all context
-(`severity x (0.35 + 0.65 x context)`), so the reference ranking is mostly severity (Spearman 0.90 with severity
-on all rows), and 93 training rows are not enough for the context branch to add signal (see SHAP below).
+**The model ranks unseen areas clearly worse than sorting by severity.** In `add_priority` severity multiplies all
+context (`severity x (0.35 + 0.65 x context)`), so the reference ranking is almost a severity ranking, and the
+network's context branch adds noise rather than signal. A first run on 145 rows showed the same (model 0.743 vs
+severity 0.857); 4x more data did not close the gap.
 
-**Same budget (INR 2 lakh), 2 crews x 8 h, different orders:**
+**Same budget (INR 2 lakh, enough for about 56 of 597 repairs), 2 crews x 8 h, different orders:**
 
-| Strategy | Repairs | Reference priority addressed | High severity fixed within 2 days | Avg repair day, top-25% priority | Vehicle exposure (M) |
-|---|---|---|---|---|---|
-| Reference formula (upper bound) | 53 | 63.2% | 34.5% | 2.78 | 7.85 |
-| **Model** | 52 | **58.4%** | 20.7% | **3.59** | **8.01** |
-| Severity only | 52 | 55.9% | **48.3%** | 4.86 | 8.12 |
-| First come, first served | 66 | 47.2% | 17.2% | 5.70 | 8.21 |
-| Random (seed 42) | 66 | 46.8% | 20.7% | 5.97 | 8.22 |
+| Strategy | Repairs | Reference priority addressed | High severity fixed within 2 days | Vehicle exposure (M) |
+|---|---|---|---|---|
+| Reference formula (upper bound) | 59 | 30.1% | 31.1% | 25.48 |
+| **Model** | 52 | **25.3%** | 24.4% | 25.59 |
+| Severity only | 49 | 21.6% | **28.9%** | 25.80 |
+| First come, first served | 79 | 15.5% | 4.4% | 25.37 |
+| Random (seed 42) | 82 | 12.9% | 6.7% | 25.27 |
 
-Vehicle exposure = sum of traffic x severity x days open (days already waiting, which are synthetic, plus days
-until repair; not repaired = horizon + 1). The model beats first-come-first-served and random on every measure
-and severity-only on priority addressed and time-to-repair for top-priority potholes, but fixes fewer high-severity
-potholes quickly than severity-only. Exposure differences are small (2.4% below FCFS) because the synthetic
-waiting days dominate that sum. FCFS and random repair more potholes because they pick cheaper (less severe) ones.
+The model addresses more reference priority within the budget than severity-only (it also weighs cost-relevant
+context), and both beat first-come-first-served and random by far on priority and on fixing severe potholes
+quickly. Exposure and "average repair day of the top-25% potholes" barely differ (25.3 to 25.8; 6.4 to 6.7 days):
+the budget covers under a tenth of the potholes, so most priority potholes stay open in every strategy, and the
+synthetic waiting days dominate the exposure sum. FCFS and random repair more potholes because they pick cheaper
+(less severe) ones.
 
-**Scheduling:** knapsack picks priority 25.80 for INR 199,975 vs greedy priority-per-rupee 25.76 (greedy is within
-0.2% of optimal here). Grouping the selected repairs by DBSCAN cluster saves **13.8%** crew travel (330 vs 383 km
-over 10 days with 2 crews) against visiting them in plain priority order. Travel is large because the random points span
-a 16 km box.
+**Scheduling:** knapsack priority 31.71 for exactly INR 200,000 vs greedy 31.63 (within 0.3%). Clustering did
+**not** save travel here (319 vs 317 km, -0.9%): the 56 chosen repairs are scattered over a 16 km box, so few share a
+cluster. On the 145-row run it saved 13.8%. The cluster bonus only helps when chosen repairs are close together.
 
-**Sensitivity:** changing any one context weight of the label formula by -20% or +20% left the top 10 unchanged in
-every case (Spearman >= 0.999). Even removing road importance entirely moves scores by at most 0.04. The ranking is
-robust to the weights mainly because it is dominated by severity.
+**Sensitivity:** changing any one context weight of the label formula by -20% or +20% left the top 10 unchanged
+(Spearman 1.000), again because severity dominates the formula.
 
-**Severity head vs weak labels (test):** MAE 0.110, macro-F1 0.483 over low/medium/high; confusion matrix
-(rows = label, columns = prediction) `[[9, 2, 0], [3, 6, 0], [0, 1, 0]]`. The test split has a single high-severity
-image, so the high class score is meaningless.
+**Severity head vs weak labels (test):** MAE 0.100, macro-F1 0.436; confusion (rows = label, columns = prediction,
+low/medium/high) `[[58, 8, 0], [11, 9, 1], [0, 2, 0]]`. Only 2 high-severity test images.
 
-**Detection:** the web app's detector (`Samdutse/pothole-yolov8`) reaches **mAP@0.5 = 0.737** on these 241 annotated
-images. It was trained on a different Roboflow pothole set; we cannot rule out overlapping photos.
+**Detection:** the web app's detector (`Samdutse/pothole-yolov8`) reaches **mAP@0.5 = 0.464** on all 1,041 images
+(0.737 on the 241 Roboflow images alone). RDD2022's dashcam potholes are small and far away, unlike the close-ups the
+detector was trained on.
 
-**Explainability:** `outputs/ranked_potholes.csv` shows, per pothole, every term of the label formula (severity base,
-each context factor x weight, age, safety-floor uplift). SHAP on the tabular branch (image fixed at the average
-training embedding) gives mean |SHAP| of at most 0.003 per feature (largest: school and hospital proximity), so
-**the trained model relies almost entirely on the image**. The plan's required orderings still hold: a medium
-pothole next to a hospital outranks a small one on a highway (0.339 vs 0.138), and a severe highway pothole
-outranks a severe residential one (0.674 vs 0.653, a thin margin; the label gives 0.920 vs 0.459). Tests:
-`tests/test_hybrid_model.py`.
+**Explainability:** `outputs/ranked_potholes.csv` gives every term of the label formula per pothole. SHAP on the
+tabular branch: mean |SHAP| at most 0.008 (hospital proximity, then school proximity and junctions), so the model still
+relies almost entirely on the image. The plan's required orderings hold on the trained model (a medium pothole next
+to a hospital outranks a small highway pothole; a severe highway pothole outranks a severe residential one), checked
+by `tests/test_hybrid_model.py`.
+
+**What to take from this:** with labels from this formula, a neural network adds no ranking skill over severity; its
+value would only appear with labels that depend on context more (or with real repair-priority decisions to learn from).
 
 ## Limitations
 - Labels are our own formulas (weak box-based severity, rule-based priority). The model reproduces them; it is not validated against real repair decisions.
 - Photo locations are random points (`location_source = random_bbox`), so road and facility context is real for the point but unrelated to the photo.
-- Traffic is estimated from road class; junction/curve/accident/complaint/age columns are synthetic. Speed limits are class defaults for 143 of 145 rows.
-- Small data: 145 rows (5 highway, 7 arterial). The image branch overfits (train loss 0.003 vs validation 0.058); the context branch learns almost nothing.
+- Traffic is estimated from road class; junction/curve/accident/complaint/age columns are synthetic. Speed limits are almost all class defaults (OSM rarely tags maxspeed here).
+- Small data for a learned ranking: 597 rows (28 highway, 22 arterial). The image branch fits training well (loss 0.003 vs validation 0.043); the context branch learns almost nothing.
+- Two image sources look different: RDD2022 dashcam potholes are small and distant, so their box-based severity is lower (median 0.13 vs 0.37). Severity therefore partly measures camera distance.
 - Repair costs and crew hours use assumed rates (`schedule.py` constants), not tender data.
-- The same 241 photos are used for every step; there is no second, independent image source.
+- A real-GPS source (Outerview, 553 Mumbai photos) was tried and rejected because its labels are mostly wrong (see DATA_NOTES.md), so all locations remain random.
 - On this data, sorting by severity alone ranks unseen areas better than the trained model. To make the context matter, the label formula (or real priority data) would have to weight context more, and many more rows would be needed.
