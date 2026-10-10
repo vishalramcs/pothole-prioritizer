@@ -1,6 +1,9 @@
 // Thin fetch wrapper for the Python API (see docs/02-technical-requirements.md, section 5).
 export const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
+// Fired on any 401, so the app can show the login page when a session expires (lib/auth.tsx).
+export const LOGGED_OUT_EVENT = "srpps:logged-out";
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -10,7 +13,8 @@ export class ApiError extends Error {
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}${path}`, init);
+    // the session is an HttpOnly cookie set by the API; "include" sends it to the API's port too
+    res = await fetch(`${BASE_URL}${path}`, { credentials: "include", ...init });
   } catch {
     throw new ApiError(0, "Cannot reach the server. Is the backend running?");
   }
@@ -22,6 +26,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     } catch {
       /* response had no JSON body */
     }
+    if (res.status === 401 && path !== "/auth/me" && path !== "/auth/login") window.dispatchEvent(new Event(LOGGED_OUT_EVENT));
     throw new ApiError(res.status, message);
   }
   return res.json() as Promise<T>;

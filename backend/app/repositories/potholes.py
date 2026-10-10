@@ -7,6 +7,7 @@ from sqlalchemy import Connection, text
 _SELECT = """
 SELECT p.*, r.name AS road_name, r.road_type, r.traffic_score, r.importance_score,
        r.data_source AS road_data_source, u.image_width, u.image_height, u.media_type, u.is_demo,
+       u.description, (SELECT us.role FROM users us WHERE us.user_id = u.user_id) AS reporter_role,
        COALESCE(p.frame_storage_path, u.storage_path) AS image_path
 FROM potholes p
 JOIN uploads u ON u.upload_id = p.upload_id

@@ -24,7 +24,7 @@ class UploadError(Exception):
 
 
 def process_image(conn: Connection, data: bytes, road_id: int | None, lat: float | None, lng: float | None,
-                  gps_source: str) -> dict:
+                  gps_source: str, user_id: int | None = None, description: str | None = None) -> dict:
     s = get_settings()
     bad_file = f"Use a JPG or PNG under {s.max_upload_mb} MB"
     if len(data) > s.max_upload_mb * 1024 * 1024:
@@ -63,7 +63,7 @@ def process_image(conn: Connection, data: bytes, road_id: int | None, lat: float
     path = f"uploads/{uuid.uuid4().hex}.jpg"
     upload_id = uploads.insert(conn, storage_path=path, media_type="image", lat=lat, lng=lng,
                                gps_source=gps_source, road_id=road["road_id"], image_width=img.width,
-                               image_height=img.height)
+                               image_height=img.height, user_id=user_id, description=description)
 
     saved = save_detections(conn, upload_id, road, lat, lng, detections, img.width, img.height, cfg)
     storage.save(path, buf.getvalue(), "image/jpeg")  # after the inserts: if storing fails, they roll back
@@ -85,7 +85,7 @@ def resolve_road(conn: Connection, road_id: int | None, lat: float, lng: float) 
 
 
 def process_video(conn: Connection, data: bytes, road_id: int | None, lat: float | None, lng: float | None,
-                  gps_source: str, suffix: str) -> dict:
+                  gps_source: str, suffix: str, user_id: int | None = None, description: str | None = None) -> dict:
     """TRD 4.8: one coordinate for the whole clip (videos carry no usable EXIF GPS)."""
     s = get_settings()
     bad_file = f"Use an MP4, MOV or WebM video under {s.max_video_mb} MB"
@@ -119,7 +119,8 @@ def process_video(conn: Connection, data: bytes, road_id: int | None, lat: float
     width, height = frames[0][2].size
     stored_name = f"uploads/{uuid.uuid4().hex}{ext}"
     upload_id = uploads.insert(conn, storage_path=stored_name, media_type="video", lat=lat, lng=lng,
-                               gps_source=gps_source, road_id=road["road_id"], image_width=width, image_height=height)
+                               gps_source=gps_source, road_id=road["road_id"], image_width=width, image_height=height,
+                               user_id=user_id, description=description)
     frame_images = {index: img for index, _, img in frames}
     for index in sorted({d["frame_index"] for d in kept}):  # only frames that contain a kept pothole are stored
         buf = io.BytesIO()

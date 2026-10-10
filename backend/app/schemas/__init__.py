@@ -29,3 +29,15 @@ class CrewIn(BaseModel):
 class PlanIn(BaseModel):
     days: int = Field(ge=1, le=60)
     start_date: date | None = None
+
+
+class LoginIn(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=200)
+    role: Literal["citizen", "official"]
+
+
+class RegisterIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    password: str = Field(min_length=8, max_length=200)

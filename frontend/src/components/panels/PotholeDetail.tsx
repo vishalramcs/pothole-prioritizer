@@ -95,6 +95,12 @@ export default function PotholeDetail({ id, onClose, onChanged }: {
               Demo data: the location and road are made up; the detection is the model&apos;s real result on a sample photo.
             </p>
           )}
+          {shown.description && (
+            <section>
+              <h3 className={labelClass}>Reported by {shown.reporter_role === "citizen" ? "a citizen" : "an official"}</h3>
+              <p className="mt-1 whitespace-pre-line rounded-md bg-background px-3 py-2 text-sm shadow-recessed">{shown.description}</p>
+            </section>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <BandChip band={shown.priority_band} />
             <span className="text-lg font-extrabold">Priority <span className="font-mono">{shown.priority_score.toFixed(2)}</span></span>

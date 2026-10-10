@@ -43,6 +43,8 @@ export interface Pothole {
   facility_score: number;
   nearest_facility: string | null;
   nearest_facility_m: number | null;
+  description: string | null; // the reporter's own words
+  reporter_role: "citizen" | "official" | null;
 }
 
 export interface BreakdownPart {

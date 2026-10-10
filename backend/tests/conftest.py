@@ -30,15 +30,34 @@ def conn():
 
 
 @pytest.fixture
-def client(conn, tmp_path, monkeypatch):
-    """API client whose requests all run inside the rolled-back test transaction, storing files in tmp_path."""
+def api(conn, tmp_path, monkeypatch):
+    """Makes API clients whose requests all run inside the rolled-back test transaction, storing files in
+    tmp_path. api() is logged out; api("citizen") / api("official") is logged in as a new user of that role."""
     from fastapi.testclient import TestClient
 
     from app.core.db import get_conn
     from app.main import app
-    from app.services import storage
+    from app.services import auth, storage
 
     monkeypatch.setattr(storage, "LOCAL_DIR", tmp_path)
     app.dependency_overrides[get_conn] = lambda: conn
-    yield TestClient(app)
+    made = 0
+
+    def make(role: str | None = None) -> TestClient:
+        nonlocal made
+        c = TestClient(app)
+        if role:
+            made += 1
+            email = f"{role}{made}@test.example"
+            auth.create_user(conn, email, f"Test {role}", "test-password", role)
+            assert c.post("/api/auth/login", json={"email": email, "password": "test-password", "role": role}).status_code == 200
+        return c
+
+    yield make
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client(api):
+    """Logged in as an official: can use every endpoint."""
+    return api("official")

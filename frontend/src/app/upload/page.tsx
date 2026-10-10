@@ -10,11 +10,13 @@ import { cardClass, fieldClass, labelClass, linkClass } from "@/components/ui/st
 import { BoxedImage } from "@/components/panels/PotholeDetail";
 import { BandChip, SeverityChip, THRESHOLD_NOTE } from "@/components/ui/chips";
 import { apiFetch, BASE_URL } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { SEVERITY_COLOR } from "@/lib/colors";
 import type { Road, UploadResult } from "@/lib/types";
 
 const MAX_MB = 10;
 const MAX_VIDEO_MB = 50;
+const MAX_DESCRIPTION = 1000; // same limit as the API
 const IMAGE_TYPES = ["image/jpeg", "image/png"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 
@@ -28,6 +30,8 @@ const MATCH_TEXT = { new: "New", repeat: "Yes, same pothole (seen again)", recur
 export default function UploadPage() {
   const [roads, setRoads] = useState<Road[]>([]);
   const [roadId, setRoadId] = useState("");
+  const [description, setDescription] = useState("");
+  const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [lat, setLat] = useState("");
@@ -78,6 +82,7 @@ export default function UploadPage() {
     const form = new FormData();
     form.append("file", file);
     if (roadId) form.append("road_id", roadId); // empty: the backend finds the road on OpenStreetMap
+    if (description.trim()) form.append("description", description.trim());
     if (lat !== "") {
       form.append("lat", lat);
       form.append("lng", lng);
@@ -122,6 +127,15 @@ export default function UploadPage() {
           ? <video src={preview} controls muted className="max-h-72 rounded-md" aria-label={`Selected video: ${file?.name}`} />
           // eslint-disable-next-line @next/next/no-img-element -- local preview from an object URL
           : <img src={preview} alt="Selected photo preview" className="max-h-72 rounded-md object-contain" />)}
+
+        <label className={fieldLabel}>Description (optional, up to {MAX_DESCRIPTION} characters)
+          <textarea className={`${field} min-h-24 font-sans`} maxLength={MAX_DESCRIPTION} value={description}
+            placeholder="What did you see? e.g. deep pothole in the left lane near the bus stop"
+            onChange={(e) => setDescription(e.target.value)} />
+          <span className="mt-1 block text-right font-mono text-xs text-muted" aria-live="polite">
+            {description.length}/{MAX_DESCRIPTION}
+          </span>
+        </label>
 
         <label className={fieldLabel}>Road (optional: found from the location if left empty)
           <select className={field} value={roadId} onChange={(e) => setRoadId(e.target.value)}>
@@ -240,7 +254,7 @@ export default function UploadPage() {
             All potholes in one {result.media_type === "video" ? "clip" : "photo"} share this point. {THRESHOLD_NOTE}
           </p>
           <div className="flex gap-3">
-            <Link href="/" className={buttonClass("primary", "md")}>View on map</Link>
+            {user?.role === "official" && <Link href="/" className={buttonClass("primary", "md")}>View on map</Link>}
             <Button variant="outline" onClick={() => pickFile(null)}>Upload another</Button>
           </div>
         </section>

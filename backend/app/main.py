@@ -35,6 +35,7 @@ app = FastAPI(title="SRPPS API", version="0.4.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
+    allow_credentials=True,  # the session cookie; needs explicit origins, never "*"
     allow_methods=["*"],
     allow_headers=["*"],
 )

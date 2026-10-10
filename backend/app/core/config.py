@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     storage_bucket: str = "road-images"
 
     cors_origins: str = "http://localhost:3000"
+    # Send the session cookie only over HTTPS. False for local http://localhost; set True when deployed.
+    cookie_secure: bool = False
     model_path: str = "ml/weights/pothole.pt"
     max_upload_mb: int = 10
     max_video_mb: int = 50
