@@ -71,3 +71,14 @@ def test_citizen_reports_with_a_description_and_officials_read_it(api, client, c
 
 def test_description_is_limited(api, conn, fake_detector):  # noqa: F811
     assert upload(api("citizen"), conn, description="x" * 1001).status_code == 400
+
+
+def test_demo_login_accepts_anything_as_the_chosen_role(api, monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "demo_login", True)
+    c = api()
+    r = c.post("/api/auth/login", json={"email": "anything", "password": "x", "role": "official"})
+    assert r.status_code == 200 and r.json()["role"] == "official"
+    assert c.get("/api/potholes").status_code == 200
+    r = c.post("/api/auth/login", json={"email": "anything", "password": "y", "role": "citizen"})
+    assert r.json()["role"] == "citizen" and c.get("/api/potholes").status_code == 403

@@ -17,6 +17,10 @@ def get_by_email(conn: Connection, email: str) -> dict | None:
     return dict(row) if row else None
 
 
+def set_role(conn: Connection, user_id: int, role: str) -> None:
+    conn.execute(text("UPDATE users SET role = :r WHERE user_id = :u"), {"r": role, "u": user_id})
+
+
 def add_session(conn: Connection, token_hash: str, user_id: int, expires_at: datetime) -> None:
     conn.execute(text("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (:t, :u, :x)"),
                  {"t": token_hash, "u": user_id, "x": expires_at})

@@ -67,7 +67,7 @@ export default function LoginPage() {
             </label>
           )}
           <label className={labelClass}>Email
-            <input className={field} type="email" autoComplete="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className={field} type={creating ? "email" : "text"} autoComplete="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} />
           </label>
           <label className={labelClass}>Password{creating && " (at least 8 characters)"}
             <input className={field} type="password" autoComplete={creating ? "new-password" : "current-password"} required

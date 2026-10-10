@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     # Send the session cookie only over HTTPS. False for local http://localhost; set True when deployed.
     cookie_secure: bool = False
+    # Demo/hackathon mode: any email and password logs in, as the role picked on the login page (the account is
+    # made on first use). NOT for real use: anyone can become an official. Off unless DEMO_LOGIN=true.
+    demo_login: bool = False
     model_path: str = "ml/weights/pothole.pt"
     max_upload_mb: int = 10
     max_video_mb: int = 50

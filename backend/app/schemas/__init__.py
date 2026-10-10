@@ -32,7 +32,7 @@ class PlanIn(BaseModel):
 
 
 class LoginIn(BaseModel):
-    email: str = Field(min_length=3, max_length=254)
+    email: str = Field(min_length=1, max_length=254)
     password: str = Field(min_length=1, max_length=200)
     role: Literal["citizen", "official"]
 

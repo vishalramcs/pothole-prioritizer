@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import Connection
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import get_settings
 from app.repositories import users
 
 SESSION_DAYS = 7
@@ -52,15 +53,28 @@ def create_user(conn: Connection, email: str, name: str, password: str, role: st
 def login(conn: Connection, email: str, password: str, role: str) -> tuple[dict, str]:
     """The user and a new session token. One message for a wrong email or password, so it doesn't reveal
     which emails have accounts."""
-    user = users.get_by_email(conn, email.strip().lower())
-    if not check_password(password, user["password_hash"] if user else _DUMMY) or user is None:
-        raise AuthError("Wrong email or password", 401)
+    if get_settings().demo_login:  # demo mode: no password check, the account follows the chosen role
+        user = _demo_user(conn, email.strip().lower(), role)
+    else:
+        user = users.get_by_email(conn, email.strip().lower())
+        if not check_password(password, user["password_hash"] if user else _DUMMY) or user is None:
+            raise AuthError("Wrong email or password", 401)
     if user["role"] != role:
         raise AuthError("This is an official account: choose Official" if user["role"] == "official"
                         else "This is a citizen account: choose Citizen", 403)
     token = secrets.token_urlsafe(32)
     users.add_session(conn, token_hash(token), user["user_id"], datetime.now(UTC) + timedelta(days=SESSION_DAYS))
     return {k: user[k] for k in ("user_id", "email", "name", "role")}, token
+
+
+def _demo_user(conn: Connection, email: str, role: str) -> dict:
+    """Demo mode: the account for this email, made on first use and switched to the chosen role."""
+    user = users.get_by_email(conn, email)
+    if user is None:
+        users.insert(conn, email, email.split("@")[0][:100] or "Demo user", hash_password(secrets.token_hex(16)), role)
+    elif user["role"] != role:
+        users.set_role(conn, user["user_id"], role)
+    return users.get_by_email(conn, email)
 
 
 def user_for_token(conn: Connection, token: str | None) -> dict | None:

@@ -4,6 +4,7 @@ import pytest
 
 # Tests must not depend on a developer's real .env
 os.environ.setdefault("DATABASE_URL", "")
+os.environ["DEMO_LOGIN"] = "false"  # tests check real passwords; demo mode is tested by switching it on
 
 TEST_DB = os.getenv("TEST_DATABASE_URL")
 
