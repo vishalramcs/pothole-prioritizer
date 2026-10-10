@@ -25,6 +25,18 @@ function fileError(f: File): string | null {
   if (VIDEO_TYPES.includes(f.type)) return f.size > MAX_VIDEO_MB * 1024 * 1024 ? `Use a video under ${MAX_VIDEO_MB} MB` : null;
   return `Use a JPG or PNG under ${MAX_MB} MB, or an MP4, MOV or WebM video under ${MAX_VIDEO_MB} MB`;
 }
+/** The one points line. Never says an email was sent: with SMTP set up it is only queued after the upload. */
+function pointsLine(p: NonNullable<UploadResult["points"]>): string {
+  if (p.earned === 0 && p.reason === "No pothole detected") return "No pothole detected, 0 points.";
+  const pts = p.earned > 0 ? `+${p.earned} points` : `0 points (${p.reason})`;
+  if (p.total === null) return p.earned > 0 ? `${pts} for this report.` : `${pts}.`;
+  const to = p.email?.to ?? "";
+  const mail = p.email?.status === "sending"
+    ? ` An email summary is being sent to ${to}.`
+    : ` (Demo: no email was actually sent.)${p.email?.status === "not_configured" ? ` In the full version a summary goes to ${to}.` : ""}`;
+  return `${pts}, total ${p.total}.${mail}`;
+}
+
 const MATCH_TEXT = { new: "New", repeat: "Yes, same pothole (seen again)", recurrence: "Yes, came back after repair" };
 
 export default function UploadPage() {
@@ -202,6 +214,7 @@ export default function UploadPage() {
           <h2 className="text-2xl font-extrabold">
             {result.potholes.length === 0 ? "No potholes detected" : `${result.potholes.length} pothole(s) found`}
           </h2>
+          {result.points && <p role="status" className="font-semibold">{pointsLine(result.points)}</p>}
           {result.media_type === "video" ? (
             <>
               <p className="text-sm text-muted">{result.frames_sampled} frames checked; the same pothole in consecutive frames counts once.</p>

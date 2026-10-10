@@ -32,6 +32,7 @@ Ticked = built, and covered by automated tests and a manual check in Chrome agai
 - [x] Location factor: proximity to important buildings (hospitals, clinics, fire stations, schools, colleges, universities, police, bus and railway stations; OpenStreetMap)
 - [x] Evaluation of the prioritization: baselines, exposure, travel, weight sensitivity
 - [x] Logins for the two stakeholders: **citizens** sign up and report potholes (photo or video plus a description); **officials** use everything (map, plans, repairs, analytics, evaluation) and read each report's description. The API enforces the roles; official accounts are created by an administrator
+- [x] Reward points for citizens: +10 for a new pothole, +2 for confirming one on record, 0 when nothing is detected; once per pothole per citizen, at most 50 a day, none for photos whose EXIF time is over 7 days old. Optional email summary over SMTP; without SMTP settings the app says no email was sent
 
 Not done: a screen to edit road traffic/importance (the API `PUT /api/roads/{id}` works; there is no form), hosted Supabase test (see How to Run).
 
@@ -67,7 +68,7 @@ Measured on the development laptop (CPU only): detection takes about 0.12 s per 
 Tested on Windows 11 with Python 3.12 and Node 24, against a local Postgres. **Not yet tested against a hosted Supabase project.**
 
 **1. Database.** Pick one:
-- *Supabase:* in the SQL Editor run, in order, `supabase/migrations/0001_init_schema.sql`, `0002_enable_rls.sql`, `0003_demo_flag.sql`, `0004_facilities.sql`, `0005_osm_roads.sql`, `0006_users.sql`, then `supabase/seed.sql`. Create a private Storage bucket `road-images`. Use the **Session pooler** connection string.
+- *Supabase:* in the SQL Editor run, in order, `supabase/migrations/0001_init_schema.sql`, `0002_enable_rls.sql`, `0003_demo_flag.sql`, `0004_facilities.sql`, `0005_osm_roads.sql`, `0006_users.sql`, `0007_points.sql`, then `supabase/seed.sql`. Create a private Storage bucket `road-images`. Use the **Session pooler** connection string.
 - *Local (no internet needed for the database):* step 2 below starts one.
 
 **2. Backend** (first terminal)
@@ -88,7 +89,7 @@ python scripts/relink_roads.py     # only for databases from before 0005: move p
 python scripts/create_user.py --role official --email you@city.gov.in --name "Your Name"   # asks for a password
 uvicorn app.main:app                # http://localhost:8000/docs
 ```
-Officials can only be created with `create_user.py`; citizens create their own account on the login page. A database made before 0006 needs `supabase/migrations/0006_users.sql` run once (a new local database applies it automatically). When the site is served over HTTPS, set `COOKIE_SECURE=true` in `.env`.
+Officials can only be created with `create_user.py`; citizens create their own account on the login page. A database made before 0006 or 0007 needs `supabase/migrations/0006_users.sql` / `0007_points.sql` run once (a new local database applies them automatically). For points emails, fill `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` in `.env`. When the site is served over HTTPS, set `COOKIE_SECURE=true` in `.env`.
 Check: `http://localhost:8000/api/health/db` says `reachable`.
 
 The local Postgres keeps running in the background and gets a new port each time it starts: after a reboot, run `python scripts/local_db.py` again and update `DATABASE_URL`. Stop it with `python scripts/local_db.py --stop`.
@@ -105,7 +106,7 @@ npm run dev                         # http://localhost:3000
 ```bash
 cd backend
 set TEST_DATABASE_URL=<the same local DATABASE_URL>   # macOS/Linux: export TEST_DATABASE_URL=...
-pytest                              # 132 tests; database tests are skipped without TEST_DATABASE_URL
+pytest                              # 140 tests; database tests are skipped without TEST_DATABASE_URL
 cd ../frontend && npm run lint && npm run build
 ```
 Database tests run inside a transaction that is rolled back, so they leave no data behind. Use a local database for them, not the demo Supabase project.
@@ -189,4 +190,4 @@ Claude (Anthropic) was used for planning and drafting the documents in `docs/` a
 - A crew with any finished repairs cannot be deleted (its orders are repair history).
 - Needs internet for map tiles; needs internet for Supabase unless the local Postgres is used.
 - Photos may contain faces or number plates; we store only the image and its location.
-- Accounts: no password reset, no email verification and no limit on login attempts yet; an administrator removes an account in the database. Citizens cannot see the status of their reports after submitting them.
+- Accounts: no password reset, no email verification and no limit on login attempts yet; an administrator removes an account in the database. Citizens cannot see the status of their reports after submitting them. Points: the account email is not verified, there is nothing to redeem, and the points email is only queued (sent after the response; a failure is only logged).

@@ -82,6 +82,14 @@ export interface UploadResult {
   image_width: number;
   image_height: number;
   potholes: UploadedPothole[];
+  // citizens only (null for officials); total is null when it could not be stored
+  points?: {
+    earned: number;
+    reason: string;
+    total: number | null;
+    stored: boolean;
+    email?: { status: "sending" | "not_configured" | "no_address"; to: string };
+  } | null;
 }
 
 export interface RepairRow {

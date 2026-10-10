@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     # Demo/hackathon mode: any email and password logs in, as the role picked on the login page (the account is
     # made on first use). NOT for real use: anyone can become an official. Off unless DEMO_LOGIN=true.
     demo_login: bool = False
+
+    # Points email (optional). Leave SMTP_HOST empty to send nothing; the app then says no email was sent.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_pass: str = ""
+    mail_from: str = ""
     model_path: str = "ml/weights/pothole.pt"
     max_upload_mb: int = 10
     max_video_mb: int = 50
