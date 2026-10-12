@@ -1,7 +1,7 @@
 # Smart Road Pothole Prioritization System (SRPPS)
 
-## Team
-TODO: team name, members, roles (ML / backend / frontend)
+## Team Name - Twinkle twinkle little stars
+roles (ML / backend / frontend)
 
 ## Problem Statement
 Hackathon problem statement 5: **Smart Road Pothole Prioritization System.** (The planning docs in `docs/` say 6; the official statement is numbered 5.)
